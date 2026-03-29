@@ -2,9 +2,9 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
-import { User } from '../users/entities/user.entity';
+import { createRemoteJWKSet, jwtVerify, JWTPayload } from 'jose';
+import { OAuthProvider, User } from '../users/entities/user.entity';
 import { UsersService } from '../users/users.service';
-import type { KakaoProfile } from '../users/users.service';
 
 export interface TokenPayload {
   sub: string;
@@ -24,8 +24,28 @@ export interface AuthTokens {
   };
 }
 
+type ProviderJwksConfig = {
+  issuer: string;
+  jwks: ReturnType<typeof createRemoteJWKSet>;
+};
+
 @Injectable()
 export class AuthService {
+  private readonly providers: Record<OAuthProvider, ProviderJwksConfig> = {
+    google: {
+      issuer: 'https://accounts.google.com',
+      jwks: createRemoteJWKSet(new URL('https://www.googleapis.com/oauth2/v3/certs')),
+    },
+    kakao: {
+      issuer: 'https://kauth.kakao.com',
+      jwks: createRemoteJWKSet(new URL('https://kauth.kakao.com/.well-known/jwks.json')),
+    },
+    apple: {
+      issuer: 'https://appleid.apple.com',
+      jwks: createRemoteJWKSet(new URL('https://appleid.apple.com/auth/keys')),
+    },
+  };
+
   constructor(
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
@@ -107,55 +127,81 @@ export class AuthService {
   }
 
   /**
-   * SPA 방식: 프론트가 받은 카카오 code를 토큰으로 교환하고 프로필 조회 후 우리 User 반환
+   * 프론트 SDK가 받은 OIDC ID Token을 JWKS로 검증하고 표준 클레임을 반환합니다.
    */
-  async exchangeKakaoCode(code: string, redirectUri: string): Promise<User> {
-    const clientId = this.configService.get<string>('KAKAO_CLIENT_ID');
-    const clientSecret = this.configService.get<string>('KAKAO_CLIENT_SECRET');
-    if (!clientId)
-      throw new UnauthorizedException('KAKAO_CLIENT_ID not configured');
-
-    const tokenRes = await fetch('https://kauth.kakao.com/oauth/token', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        grant_type: 'authorization_code',
-        client_id: clientId,
-        redirect_uri: redirectUri,
-        code,
-        ...(clientSecret && { client_secret: clientSecret }),
-      }),
-    });
-    if (!tokenRes.ok) {
-      const err = await tokenRes.text();
-      throw new UnauthorizedException(`Kakao token exchange failed: ${err}`);
+  async validateSocialIdToken(
+    provider: OAuthProvider,
+    idToken: string,
+  ): Promise<{ providerId: string; email: string | null; nickname: string | null; profileImageUrl: string | null }> {
+    const config = this.providers[provider];
+    if (!config) {
+      throw new UnauthorizedException('지원하지 않는 제공자입니다.');
     }
-    const tokenData = (await tokenRes.json()) as { access_token: string };
-    const kakaoAccessToken = tokenData.access_token;
 
-    const profileRes = await fetch('https://kapi.kakao.com/v2/user/me', {
-      headers: { Authorization: `Bearer ${kakaoAccessToken}` },
-    });
-    if (!profileRes.ok) {
-      throw new UnauthorizedException('Kakao profile fetch failed');
+    const clientId = this.getClientId(provider);
+    if (!clientId) {
+      throw new UnauthorizedException(`${provider.toUpperCase()} 클라이언트 ID가 설정되지 않았습니다.`);
     }
-    const raw = (await profileRes.json()) as {
-      id: number;
-      kakao_account?: {
-        email?: string;
-        profile?: { nickname?: string; profile_image_url?: string };
-      };
-      properties?: { nickname?: string; profile_image?: string };
-    };
 
-    const profile: KakaoProfile = {
-      id: raw.id,
-      displayName:
-        raw.properties?.nickname ??
-        raw.kakao_account?.profile?.nickname ??
-        undefined,
-      _json: raw,
+    let payload: JWTPayload;
+    try {
+      const verified = await jwtVerify(idToken, config.jwks, {
+        issuer: config.issuer,
+        audience: clientId,
+      });
+      payload = verified.payload;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error(`${provider} ID Token 검증 실패:`, msg);
+      throw new UnauthorizedException('유효하지 않은 토큰입니다.');
+    }
+
+    const sub = typeof payload.sub === 'string' ? payload.sub : '';
+    if (!sub) {
+      throw new UnauthorizedException('토큰에 subject(sub)가 없습니다.');
+    }
+
+    const email = typeof payload.email === 'string' ? payload.email : null;
+
+    const rawName =
+      payload.name ?? payload.nickname ?? (payload as { nickname?: string }).nickname;
+    const nickname =
+      typeof rawName === 'string' && rawName.length > 0 ? rawName : null;
+
+    const picture = payload.picture;
+    const profileImageUrl =
+      typeof picture === 'string' && picture.length > 0 ? picture : null;
+
+    return {
+      providerId: sub,
+      email,
+      nickname,
+      profileImageUrl,
     };
-    return this.usersService.findOrCreateByKakao(profile);
+  }
+
+  async loginWithSocialIdToken(provider: OAuthProvider, idToken: string): Promise<AuthTokens> {
+    const claims = await this.validateSocialIdToken(provider, idToken);
+    const user = await this.usersService.findOrCreateByOAuth({
+      provider,
+      providerId: claims.providerId,
+      email: claims.email,
+      nickname: claims.nickname,
+      profileImageUrl: claims.profileImageUrl,
+    });
+    return this.login(user);
+  }
+
+  private getClientId(provider: OAuthProvider): string {
+    switch (provider) {
+      case 'google':
+        return this.configService.get<string>('GOOGLE_CLIENT_ID') ?? '';
+      case 'kakao':
+        return this.configService.get<string>('KAKAO_CLIENT_ID') ?? '';
+      case 'apple':
+        return this.configService.get<string>('APPLE_CLIENT_ID') ?? '';
+      default:
+        return '';
+    }
   }
 }

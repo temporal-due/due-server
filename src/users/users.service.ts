@@ -1,20 +1,15 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { User } from './entities/user.entity';
+import { OAuthProvider, User } from './entities/user.entity';
 
-export interface KakaoProfile {
-  id: number;
-  username?: string;
-  displayName?: string;
-  _json?: {
-    id: number;
-    kakao_account?: {
-      email?: string;
-      profile?: { nickname?: string; profile_image_url?: string };
-    };
-    properties?: { nickname?: string; profile_image?: string };
-  };
+export interface OAuthProfileInput {
+  provider: OAuthProvider;
+  /** ID Token `sub` */
+  providerId: string;
+  email: string | null;
+  nickname: string | null;
+  profileImageUrl: string | null;
 }
 
 @Injectable()
@@ -24,44 +19,34 @@ export class UsersService {
     private readonly userRepository: Repository<User>,
   ) {}
 
-  async findOrCreateByKakao(profile: KakaoProfile): Promise<User> {
-    const kakaoId = String(profile.id);
-    let user = await this.userRepository.findOne({ where: { kakaoId } });
+  async findOrCreateByOAuth(profile: OAuthProfileInput): Promise<User> {
+    const { provider, providerId } = profile;
+    let user = await this.userRepository.findOne({
+      where: { authProvider: provider, oauthSub: providerId },
+    });
 
     if (!user) {
-      const kakaoAccount = profile._json?.kakao_account;
-      const properties = profile._json?.properties;
       user = this.userRepository.create({
-        kakaoId,
-        nickname:
-          properties?.nickname ??
-          kakaoAccount?.profile?.nickname ??
-          profile.displayName ??
-          profile.username ??
-          null,
-        email: kakaoAccount?.email ?? null,
-        profileImageUrl:
-          kakaoAccount?.profile?.profile_image_url ??
-          properties?.profile_image ??
-          null,
+        authProvider: provider,
+        oauthSub: providerId,
+        nickname: profile.nickname,
+        email: profile.email,
+        profileImageUrl: profile.profileImageUrl,
       });
       await this.userRepository.save(user);
-    } else {
-      const kakaoAccount = profile._json?.kakao_account;
-      const properties = profile._json?.properties;
-      user.nickname =
-        properties?.nickname ??
-        kakaoAccount?.profile?.nickname ??
-        profile.displayName ??
-        profile.username ??
-        user.nickname;
-      user.email = kakaoAccount?.email ?? user.email;
-      user.profileImageUrl =
-        kakaoAccount?.profile?.profile_image_url ??
-        properties?.profile_image ??
-        user.profileImageUrl;
-      await this.userRepository.save(user);
+      return user;
     }
+
+    if (profile.nickname) {
+      user.nickname = profile.nickname;
+    }
+    if (profile.email) {
+      user.email = profile.email;
+    }
+    if (profile.profileImageUrl) {
+      user.profileImageUrl = profile.profileImageUrl;
+    }
+    await this.userRepository.save(user);
 
     return user;
   }

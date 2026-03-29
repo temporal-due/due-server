@@ -1,16 +1,6 @@
-import {
-  Body,
-  Controller,
-  Get,
-  Post,
-  Req,
-  Res,
-  UseGuards,
-} from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { AuthGuard } from '@nestjs/passport';
-import type { Response } from 'express';
+import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
 import { AuthService, AuthTokens } from './auth.service';
+import { SocialLoginDto } from './dto/social-login.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { User } from '../users/entities/user.entity';
@@ -23,21 +13,14 @@ export interface ProtectedResourceDto {
 
 @Controller('auth')
 export class AuthController {
-  constructor(
-    private readonly authService: AuthService,
-    private readonly configService: ConfigService,
-  ) {}
+  constructor(private readonly authService: AuthService) {}
 
-  /** SPA 방식: 프론트가 code를 보내면 토큰 교환 후 JSON으로 accessToken, refreshToken 반환 */
-  @Post('kakao/token')
-  async kakaoToken(
-    @Body() body: { code: string; redirectUri: string },
-  ): Promise<AuthTokens> {
-    const user = await this.authService.exchangeKakaoCode(
-      body.code,
-      body.redirectUri,
-    );
-    return this.authService.login(user);
+  /**
+   * 프론트 SDK 로그인 후 받은 OIDC ID Token으로 검증·회원 연동 후 우리 JWT 발급
+   */
+  @Post('social')
+  async socialLogin(@Body() dto: SocialLoginDto): Promise<AuthTokens> {
+    return this.authService.loginWithSocialIdToken(dto.provider, dto.idToken);
   }
 
   @Post('refresh')
