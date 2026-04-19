@@ -1,0 +1,19 @@
+$kind: http-request
+name: Update Phase Order
+method: PATCH
+url: '{{baseUrl}}/phases/{{phaseId}}/order'
+order: 1000
+headers:
+  - key: Authorization
+    value: 'Bearer {{accessToken}}'
+  - key: Content-Type
+    value: application/json
+pathVariables:
+  - key: phaseId
+    value: '{{phaseId}}'
+body:
+  type: json
+  content: |-
+    {
+      "order": 0
+    }

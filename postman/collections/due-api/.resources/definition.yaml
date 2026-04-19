@@ -1,0 +1,5 @@
+$kind: collection
+name: Due API
+description: "API collection for the Due project management backend (NestJS). Base URL: [http://localhost:3000](http://localhost:3000)"
+variables:
+  baseUrl: http://localhost:3000

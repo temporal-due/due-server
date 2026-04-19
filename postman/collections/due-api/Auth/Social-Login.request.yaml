@@ -1,0 +1,15 @@
+$kind: http-request
+name: Social Login
+method: POST
+url: '{{baseUrl}}/auth/social'
+order: 1000
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "provider": "google",
+      "idToken": "{{idToken}}"
+    }

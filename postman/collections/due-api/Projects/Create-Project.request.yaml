@@ -1,0 +1,38 @@
+$kind: http-request
+name: Create Project
+method: POST
+url: '{{baseUrl}}/projects'
+order: 1000
+headers:
+  - key: Authorization
+    value: 'Bearer {{accessToken}}'
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "projectName": "My Project",
+      "startDate": "2026-05-01",
+      "dueDate": "2026-08-31",
+      "budget": 5000000,
+      "personality": {
+        "preparationStyle": "systematic",
+        "additionalConsiderations": "Focus on quality"
+      },
+      "phases": [
+        {
+          "name": "Planning",
+          "expectedStartDate": "2026-05-01",
+          "expectedEndDate": "2026-05-31",
+          "order": 0,
+          "tasks": [
+            {
+              "name": "Define requirements",
+              "status": "TODO",
+              "order": 0
+            }
+          ]
+        }
+      ]
+    }

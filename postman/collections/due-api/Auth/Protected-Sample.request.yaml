@@ -1,0 +1,8 @@
+$kind: http-request
+name: Protected Sample
+method: GET
+url: '{{baseUrl}}/auth/protected-sample'
+order: 5000
+headers:
+  - key: Authorization
+    value: 'Bearer {{accessToken}}'

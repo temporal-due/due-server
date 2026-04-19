@@ -1,0 +1,26 @@
+name: Due API
+values:
+  - key: baseUrl
+    value: 'http://localhost:3000'
+    enabled: true
+    type: default
+  - key: accessToken
+    value: ''
+    enabled: true
+    type: default
+  - key: refreshToken
+    value: ''
+    enabled: true
+    type: default
+  - key: idToken
+    value: ''
+    enabled: true
+    type: default
+  - key: phaseId
+    value: '1'
+    enabled: true
+    type: default
+  - key: taskId
+    value: '1'
+    enabled: true
+    type: default

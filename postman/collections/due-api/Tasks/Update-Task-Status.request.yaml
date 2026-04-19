@@ -1,0 +1,19 @@
+$kind: http-request
+name: Update Task Status
+method: PATCH
+url: '{{baseUrl}}/tasks/{{taskId}}/status'
+order: 1000
+headers:
+  - key: Authorization
+    value: 'Bearer {{accessToken}}'
+  - key: Content-Type
+    value: application/json
+pathVariables:
+  - key: taskId
+    value: '{{taskId}}'
+body:
+  type: json
+  content: |-
+    {
+      "status": "IN_PROGRESS"
+    }
