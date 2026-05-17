@@ -9,18 +9,15 @@ if [[ ! -f ".env" ]]; then
   exit 2
 fi
 
-CONTAINER="$(bash scripts/dev-docker-pg.sh)"
-
 DB_USER="${DB_USERNAME:-postgres}"
 DB_NAME="${DB_DATABASE:-postgres}"
 
 # Fixed dev user (deterministic across machines)
 USER_ID="${DEV_USER_ID:-11111111-1111-4111-8111-111111111111}"
 
-echo "using container: ${CONTAINER}"
 echo "resetting tables + seeding dev user: ${USER_ID}"
 
-docker exec -i "${CONTAINER}" psql -U "${DB_USER}" -d "${DB_NAME}" -v ON_ERROR_STOP=1 <<SQL
+docker compose exec -T due-local-postgres psql -U "${DB_USER}" -d "${DB_NAME}" -v ON_ERROR_STOP=1 <<SQL
 BEGIN;
 
 TRUNCATE TABLE
