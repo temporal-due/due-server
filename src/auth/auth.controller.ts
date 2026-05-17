@@ -1,6 +1,8 @@
 import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { AuthService, AuthTokens } from './auth.service';
 import { SocialLoginDto } from './dto/social-login.dto';
+import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { User } from '../users/entities/user.entity';
@@ -11,23 +13,22 @@ export interface ProtectedResourceDto {
   timestamp: string;
 }
 
+@ApiTags('Auth')
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
-  /**
-   * 프론트 SDK 로그인 후 받은 OIDC ID Token으로 검증·회원 연동 후 우리 JWT 발급
-   */
   @Post('social')
   async socialLogin(@Body() dto: SocialLoginDto): Promise<AuthTokens> {
     return this.authService.loginWithSocialIdToken(dto.provider, dto.idToken);
   }
 
   @Post('refresh')
-  async refresh(@Body() dto: { refreshToken: string }) {
+  async refresh(@Body() dto: RefreshTokenDto) {
     return this.authService.refreshTokens(dto.refreshToken);
   }
 
+  @ApiBearerAuth('access-token')
   @Post('logout')
   @UseGuards(JwtAuthGuard)
   async logout(@CurrentUser() user: User) {
@@ -35,6 +36,7 @@ export class AuthController {
     return { ok: true };
   }
 
+  @ApiBearerAuth('access-token')
   @Get('me')
   @UseGuards(JwtAuthGuard)
   me(@CurrentUser() user: User) {
@@ -46,6 +48,7 @@ export class AuthController {
     };
   }
 
+  @ApiBearerAuth('access-token')
   @Get('protected-sample')
   @UseGuards(JwtAuthGuard)
   protectedSample(@CurrentUser() user: User): ProtectedResourceDto {

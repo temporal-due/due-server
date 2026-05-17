@@ -22,3 +22,10 @@
 2. 스크립트 상단에 `set -euo pipefail` 추가
 3. `scripts/README.md`에 "어떤 상황에 쓰는 스크립트인지" 설명 추가
 4. `package.json`의 `scripts`에 `pnpm` 단축 명령어 추가
+
+## API 문서 규칙
+
+API 문서는 Swagger(`@nestjs/swagger`)로 자동 생성한다. `http://localhost:3000/api-docs`에서 확인 가능.
+
+**DTO 필드나 엔드포인트를 추가할 때는 반드시 `@ApiProperty()` 데코레이터를 함께 추가한다.**
+이게 없으면 Swagger 스키마에 해당 필드가 표시되지 않는다.

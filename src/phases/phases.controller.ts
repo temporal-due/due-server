@@ -1,8 +1,11 @@
 import { Body, Controller, Param, ParseIntPipe, Patch, UseGuards } from '@nestjs/common';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PhasesService } from './phases.service';
 import { UpdatePhaseOrderDto } from './dto/update-phase-order.dto';
 
+@ApiTags('Phases')
+@ApiBearerAuth('access-token')
 @Controller('phases')
 @UseGuards(JwtAuthGuard)
 export class PhasesController {
