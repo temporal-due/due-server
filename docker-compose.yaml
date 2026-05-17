@@ -3,10 +3,14 @@ services:
     build: .
     ports:
       - '3000:3000'
+    env_file:
+      - .env
     environment:
-      PORT: 3000
+      # docker 내부에서는 서비스명이 호스트 — .env의 DB_HOST를 덮어씀
+      DB_HOST: due-local-postgres
     depends_on:
-      - due-local-postgres
+      due-local-postgres:
+        condition: service_healthy
 
   due-local-postgres:
     image: postgres:15
@@ -14,11 +18,16 @@ services:
     volumes:
       - due-local-postgres-data:/var/lib/postgresql/data
     ports:
-      - 5432:5432
+      - '5432:5432'
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: postgres
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres']
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
 volumes:
   due-local-postgres-data:
