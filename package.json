@@ -17,6 +17,7 @@
     "dev:reset": "bash scripts/dev-reset-all.sh",
     "project:create": "bash scripts/dev-create-project.sh",
     "suggest:dev": "bash scripts/dev-suggest-project.sh",
+    "projects:list": "bash scripts/dev-list-projects-paginated.sh",
     "swagger": "bash scripts/dev-swagger.sh",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
     "test": "jest",

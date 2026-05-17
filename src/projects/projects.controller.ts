@@ -1,12 +1,24 @@
-import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  ParseIntPipe,
+  Patch,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { ProjectsService } from './projects.service';
 import { ProjectSuggestService } from './project-suggest.service';
 import { CreateProjectDto } from './dto/create-project.dto';
+import { UpdateProjectDto } from './dto/update-project.dto';
 import { SuggestProjectRequestDto } from './dto/suggest-project-request.dto';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { User } from '../users/entities/user.entity';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { CursorPaginationQueryDto } from '../common/dto/cursor-pagination.dto';
 
 @ApiTags('Projects')
 @ApiBearerAuth('access-token')
@@ -19,8 +31,11 @@ export class ProjectsController {
 
   @Get()
   @UseGuards(JwtAuthGuard)
-  getProjects(@CurrentUser() user: User) {
-    return this.projectsService.listProjects(user.id);
+  getProjects(
+    @CurrentUser() user: User,
+    @Query() query: CursorPaginationQueryDto,
+  ) {
+    return this.projectsService.listProjects(user.id, query);
   }
 
   @Post('suggest')
@@ -33,8 +48,18 @@ export class ProjectsController {
   @UseGuards(JwtAuthGuard)
   createProject(
     @CurrentUser() user: User,
-    @Body() createProjectDto: CreateProjectDto,
+    @Body() dto: CreateProjectDto,
   ) {
-    return this.projectsService.createProject(user.id, createProjectDto);
+    return this.projectsService.createProject(user.id, dto);
+  }
+
+  @Patch(':id')
+  @UseGuards(JwtAuthGuard)
+  updateProject(
+    @CurrentUser() user: User,
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdateProjectDto,
+  ) {
+    return this.projectsService.updateProject(user.id, id, dto);
   }
 }
