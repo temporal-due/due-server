@@ -23,6 +23,26 @@
 3. `scripts/README.md`에 "어떤 상황에 쓰는 스크립트인지" 설명 추가
 4. `package.json`의 `scripts`에 `pnpm` 단축 명령어 추가
 
+## README.md 싱크 규칙
+
+`package.json` 스크립트나 `.env.example` 환경변수가 바뀔 때 README.md도 반드시 함께 업데이트한다.
+
+**업데이트가 필요한 경우:**
+- `package.json`의 `scripts`에 사용자용 pnpm 명령어를 추가할 때 → README.md `주요 명령어` 섹션에 추가
+- `.env.example`에 사용자가 직접 설정해야 하는 환경변수를 추가할 때 → README.md `환경 변수` 테이블에 추가
+
+**업데이트 후 검증:**
+```bash
+pnpm readme:check
+```
+이 명령어가 실패하면 README.md에 누락된 항목이 있는 것이다.
+
+**업데이트 불필요한 경우:**
+- `build`, `test`, `lint` 등 NestJS 기본 스크립트
+- `dev:reset` — `make reset`으로 이미 문서화됨
+- `JWT_ACCESS_EXPIRES`, `JWT_REFRESH_EXPIRES_SEC` — 기본값이 있어 사용자 설정 불필요
+- `DB_*`, `KAKAO_*` 그룹은 README에 와일드카드로 표시됨 — 그룹 내 개별 변수 추가는 문서화 생략 가능
+
 ## API 문서 규칙
 
 API 문서는 Swagger(`@nestjs/swagger`)로 자동 생성한다. `http://localhost:3000/api-docs`에서 확인 가능.

@@ -61,6 +61,9 @@ make reset      # DB 초기화 + 테스트 유저 시드
 pnpm token:dev       # 개발용 JWT 액세스 토큰 발급
 pnpm me:dev          # /auth/me 엔드포인트 테스트
 pnpm project:create  # 테스트 프로젝트 생성
+pnpm projects:list   # cursor 페이지네이션 조회 테스트
+pnpm suggest:dev     # AI 프로젝트 제안 엔드포인트 테스트
+pnpm swagger         # Swagger UI 브라우저에서 열기
 ```
 
 ---
@@ -76,3 +79,4 @@ pnpm project:create  # 테스트 프로젝트 생성
 | `JWT_SECRET` | JWT 서명 키 (32자 이상) | — 직접 설정 필요 |
 | `KAKAO_*` | Kakao OAuth 앱 자격증명 | — 팀에서 공유 |
 | `FRONTEND_URL` | CORS 허용 프론트 URL | `http://localhost:8081` |
+| `OPENAI_API_KEY` | AI 프로젝트 제안 기능 (OpenAI) | — 직접 설정 필요 |
