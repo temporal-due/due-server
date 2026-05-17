@@ -85,6 +85,45 @@ pnpm project:create
 
 ---
 
+### "AI가 추천해주는 프로젝트 기본값을 테스트하고 싶어요"
+
+```bash
+pnpm suggest:dev
+```
+
+마감일·준비 스타일·추가 고려사항을 GPT에 보내고, 프로젝트 생성 폼의 기본값을 JSON으로 출력합니다.
+반환된 JSON은 `POST /projects` 바디로 그대로 사용할 수 있습니다.
+
+**언제 쓰나요?**
+- `POST /projects/suggest` 엔드포인트 동작을 빠르게 확인할 때
+- GPT 프롬프트나 structured output 스키마를 수정한 뒤 결과를 검증할 때
+
+> **주의**: `.env`에 유효한 `OPENAI_API_KEY`가 있어야 합니다.
+> 서버가 실행 중이어야 하며, DB에 개발 유저가 있어야 합니다 (`pnpm dev:reset`).
+
+---
+
+### "API 명세를 브라우저에서 바로 보고 싶어요" (프론트엔드 개발자 필독)
+
+```bash
+pnpm swagger
+```
+
+Swagger UI를 브라우저에서 바로 열어줍니다.
+서버가 실행 중이지 않으면 안내 메시지를 출력하고 종료합니다.
+
+열리는 화면에서:
+- 전체 API 목록과 Request/Response 스키마를 확인할 수 있습니다
+- `Authorize` 버튼에 `pnpm token:dev`로 발급한 토큰을 입력하면 UI에서 직접 API 호출도 가능합니다
+- OpenAPI JSON 스펙은 `http://localhost:3000/api-docs-json`에서 받을 수 있습니다 (Postman import 등에 활용)
+
+**언제 쓰나요?**
+- API 명세를 확인하고 싶을 때
+- 새로 추가된 엔드포인트의 Request body 구조를 확인할 때
+- Postman 없이 브라우저에서 API를 직접 호출해보고 싶을 때
+
+---
+
 ## 전형적인 개발 시작 순서
 
 ```bash
