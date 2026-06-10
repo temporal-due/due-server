@@ -19,7 +19,7 @@ pnpm dev:reset
 실행하면 아래 세 가지를 한 번에 해줍니다:
 
 1. `users`, `projects`, `phases`, `tasks` 테이블 전체 비우기
-2. 개발용 유저 생성 (이메일: `dev@example.com`)
+2. 개발용 유저 생성 (이메일: `dev@local.test`)
 3. 그 유저로 로그인된 상태의 토큰 출력
 
 **언제 쓰나요?**
@@ -31,17 +31,16 @@ pnpm dev:reset
 
 ### "API 호출할 때 쓸 로그인 토큰이 필요해요"
 
+**Swagger 사용 (추천)**: `http://localhost:3000/api-docs` 접속 → 상단 **Dev Login** 버튼 클릭
+
+**터미널 / Postman 사용**:
+
 ```bash
 pnpm token:dev
 ```
 
-개발용 유저(`dev@example.com`)로 로그인한 것과 동일한 효과의 토큰을 출력합니다.
-Postman이나 curl로 API를 직접 테스트할 때 이 토큰을 `Authorization: Bearer <토큰>` 헤더에 넣으면 됩니다.
-
-**언제 쓰나요?**
-- Postman에서 인증이 필요한 API를 테스트할 때
-- curl로 직접 API를 호출해보고 싶을 때
-- 토큰이 만료됐을 때 (24시간 유효)
+개발용 유저(`dev@local.test`)로 로그인한 것과 동일한 효과의 토큰을 출력합니다.
+`Authorization: Bearer <토큰>` 헤더에 넣으면 됩니다.
 
 > **참고**: `pnpm dev:reset`을 실행하면 토큰도 같이 출력되므로,
 > 초기화 직후라면 따로 실행할 필요 없습니다.
@@ -63,83 +62,17 @@ pnpm me:dev
 
 ---
 
-### "테스트용 프로젝트 데이터가 필요해요"
+### "API 명세와 테스트 데이터가 필요해요" (프론트엔드 개발자 필독)
 
-```bash
-pnpm project:create
-```
+별도 스크립트 없이 Swagger UI에서 직접 합니다:
 
-샘플 프로젝트를 API를 통해 생성합니다. 프론트엔드에서 실제 데이터가 있는 화면을 확인할 때 유용합니다.
+1. 서버 실행: `make dev`
+2. `pnpm dev:reset` — DB 초기화 + 개발 유저 생성
+3. `http://localhost:3000/api-docs` 접속
+4. 상단 **Dev Login** 버튼 클릭 → 자동 로그인
+5. 원하는 엔드포인트에서 **Try it out** → **Execute**
 
-생성되는 내용:
-- 프로젝트명: "샘플 프로젝트"
-- Phase 2개 (준비 / 실행)
-- 각 Phase에 Task 2개씩
-
-**언제 쓰나요?**
-- 프론트엔드에서 프로젝트 목록, 상세 화면 등을 개발할 때
-- 빈 DB에 빠르게 더미 데이터를 넣고 싶을 때
-
-> **주의**: 서버(`make dev` 또는 `make dev-local`)가 실행 중이어야 합니다.
-> 또한 DB에 개발 유저가 있어야 하므로, 처음이라면 먼저 `pnpm dev:reset`을 실행하세요.
-
----
-
-### "프로젝트 목록 cursor 페이지네이션을 테스트하고 싶어요"
-
-```bash
-pnpm projects:list
-```
-
-개발 유저의 프로젝트를 2개씩 cursor 기반으로 페이지네이션 조회합니다.
-1페이지 조회 후 `nextCursor` 값을 자동으로 추출해 2페이지를 연속 호출하므로,
-cursor 동작을 한 번에 확인할 수 있습니다.
-
-**언제 쓰나요?**
-- `GET /projects` cursor 페이지네이션 동작을 빠르게 확인할 때
-- `pnpm project:create`로 프로젝트를 여러 개 만든 뒤 페이지 분할이 되는지 검증할 때
-
-> **주의**: 서버가 실행 중이어야 하며, DB에 개발 유저가 있어야 합니다 (`pnpm dev:reset`).
-> 프로젝트가 2개 이하면 1페이지만 출력됩니다.
-
----
-
-### "AI가 추천해주는 프로젝트 기본값을 테스트하고 싶어요"
-
-```bash
-pnpm suggest:dev
-```
-
-마감일·준비 스타일·추가 고려사항을 GPT에 보내고, 프로젝트 생성 폼의 기본값을 JSON으로 출력합니다.
-반환된 JSON은 `POST /projects` 바디로 그대로 사용할 수 있습니다.
-
-**언제 쓰나요?**
-- `POST /projects/suggest` 엔드포인트 동작을 빠르게 확인할 때
-- GPT 프롬프트나 structured output 스키마를 수정한 뒤 결과를 검증할 때
-
-> **주의**: `.env`에 유효한 `OPENAI_API_KEY`가 있어야 합니다.
-> 서버가 실행 중이어야 하며, DB에 개발 유저가 있어야 합니다 (`pnpm dev:reset`).
-
----
-
-### "API 명세를 브라우저에서 바로 보고 싶어요" (프론트엔드 개발자 필독)
-
-```bash
-pnpm swagger
-```
-
-Swagger UI를 브라우저에서 바로 열어줍니다.
-서버가 실행 중이지 않으면 안내 메시지를 출력하고 종료합니다.
-
-열리는 화면에서:
-- 전체 API 목록과 Request/Response 스키마를 확인할 수 있습니다
-- `Authorize` 버튼에 `pnpm token:dev`로 발급한 토큰을 입력하면 UI에서 직접 API 호출도 가능합니다
-- OpenAPI JSON 스펙은 `http://localhost:3000/api-docs-json`에서 받을 수 있습니다 (Postman import 등에 활용)
-
-**언제 쓰나요?**
-- API 명세를 확인하고 싶을 때
-- 새로 추가된 엔드포인트의 Request body 구조를 확인할 때
-- Postman 없이 브라우저에서 API를 직접 호출해보고 싶을 때
+OpenAPI JSON 스펙은 `http://localhost:3000/api-docs-json`에서 받을 수 있습니다 (Postman import 등에 활용).
 
 ---
 
@@ -153,9 +86,6 @@ make dev-local  # DB만 Docker + 로컬 hot reload (백엔드 개발자용)
 # 2. DB 초기화 + 테스트 유저 생성
 pnpm dev:reset
 
-# 3. 테스트 데이터 생성 (필요할 때)
-pnpm project:create
-
-# 4. Postman에서 API 테스트 시 토큰 발급
-pnpm token:dev
+# 3. Swagger에서 API 테스트
+# http://localhost:3000/api-docs → Dev Login 버튼 클릭
 ```

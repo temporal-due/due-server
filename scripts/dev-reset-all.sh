@@ -36,9 +36,9 @@ INSERT INTO users (
 ) VALUES (
   '${USER_ID}'::uuid,
   'google',
-  'dev-bootstrap-sub',
+  'dev-user-local',
   'dev_user',
-  'dev@example.com'
+  'dev@local.test'
 );
 
 COMMIT;

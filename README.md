@@ -4,36 +4,50 @@ NestJS + TypeORM + PostgreSQL
 
 ---
 
-## 빠른 시작
+## 프론트엔드 개발자 — 로컬 백엔드 실행
 
-### 사전 요구사항
+**필요한 것: [Docker Desktop](https://www.docker.com/products/docker-desktop/) 하나면 됩니다.** Node.js나 pnpm 설치 불필요.
 
-| 역할 | 필요한 것 |
-|------|-----------|
-| 프론트엔드 개발자 | [Docker Desktop](https://www.docker.com/products/docker-desktop/) |
-| 백엔드 개발자 | Docker Desktop + Node.js 20+ + pnpm |
-
----
-
-### 프론트엔드 개발자 — 로컬 백엔드 실행
+### 1단계 — 최초 설정 (처음 한 번만)
 
 ```bash
 git clone <repo-url>
 cd due
-
-make setup   # .env.example → .env 복사
-# .env 파일을 열고 팀에서 받은 시크릿 값(Kakao OAuth 등)을 채운다
-make dev     # Docker로 DB + 앱 전체 실행
+make setup
 ```
 
-- API: `http://localhost:3000`
-- Node/pnpm 설치 불필요 — Docker만 있으면 됩니다.
+`.env` 파일이 생성됩니다. Kakao OAuth 키 등 팀에서 공유받은 값이 있다면 `.env`를 열어 채워주세요.
 
-**.env 시크릿 공유**: Kakao OAuth 키 등 `.env.example`에 플레이스홀더로 표시된 값은 팀 채널에서 받아 채워주세요.
+### 2단계 — 서버 실행
+
+```bash
+make dev
+```
+
+DB와 앱이 Docker로 함께 뜹니다. 터미널에 `Application is running on: http://localhost:3000`이 나오면 준비된 것입니다.
+
+### 3단계 — DB 초기화 (서버 켤 때마다 필요하면 실행)
+
+```bash
+pnpm dev:reset
+```
+
+테이블을 비우고 개발용 계정(`dev@local.test`)을 새로 만들어줍니다. 데이터가 꼬였을 때도 이걸 실행하면 초기화됩니다.
+
+### 4단계 — API 테스트
+
+`http://localhost:3000/api-docs` 에 접속하면 Swagger UI가 열립니다.
+
+1. 상단의 초록색 **Dev Login** 버튼 클릭 → **✓ 로그인됨** 으로 바뀌면 인증 완료
+2. 원하는 API를 펼쳐 **Try it out → Execute**
+
+> OpenAPI JSON 스펙은 `http://localhost:3000/api-docs-json` 에서 받을 수 있습니다 (Postman import 등에 활용).
 
 ---
 
-### 백엔드 개발자 — hot reload 개발 환경
+## 백엔드 개발자 — hot reload 개발 환경
+
+**필요한 것: Docker Desktop + Node.js 20+ + pnpm**
 
 ```bash
 git clone <repo-url>
@@ -41,30 +55,20 @@ cd due
 
 make setup      # .env 생성
 pnpm install    # 의존성 설치
-make dev-local  # DB만 Docker로, 앱은 로컬에서 hot reload
+make dev-local  # DB만 Docker로, 앱은 로컬 hot reload
+pnpm dev:reset  # DB 초기화 + 개발 유저 시드
 ```
 
-- DB만 컨테이너로 띄우고 앱은 로컬에서 직접 실행 → 코드 변경 시 자동 재시작
-- API: `http://localhost:3000`
+코드를 수정하면 앱이 자동으로 재시작됩니다.
 
----
-
-## 주요 명령어
+터미널이나 Postman에서 직접 API를 호출할 때는 아래 명령어로 토큰을 발급하세요:
 
 ```bash
-make setup      # .env.example → .env 복사 (최초 1회)
-make dev        # 전체 Docker 실행 (프론트 개발자용)
-make dev-local  # DB Docker + 앱 로컬 hot reload (백엔드 개발자용)
-make down       # 전체 종료
-make reset      # DB 초기화 + 테스트 유저 시드
-
-pnpm token:dev       # 개발용 JWT 액세스 토큰 발급
-pnpm me:dev          # /auth/me 엔드포인트 테스트
-pnpm project:create  # 테스트 프로젝트 생성
-pnpm projects:list   # cursor 페이지네이션 조회 테스트
-pnpm suggest:dev     # AI 프로젝트 제안 엔드포인트 테스트
-pnpm swagger         # Swagger UI 브라우저에서 열기
+pnpm token:dev  # 개발용 JWT 액세스 토큰 출력
+pnpm me:dev     # /auth/me 빠른 smoke test
 ```
+
+서버 종료: `make down`
 
 ---
 
