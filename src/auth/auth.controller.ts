@@ -1,5 +1,5 @@
-import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { Body, Controller, ForbiddenException, Get, Post, UseGuards } from '@nestjs/common';
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { AuthService, AuthTokens } from './auth.service';
 import { SocialLoginDto } from './dto/social-login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
@@ -17,6 +17,15 @@ export interface ProtectedResourceDto {
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
+
+  @Post('dev-login')
+  @ApiOperation({ summary: '[DEV ONLY] 소셜 인증 없이 테스트 토큰 발급 — production에서는 403' })
+  async devLogin(): Promise<AuthTokens> {
+    if (process.env.NODE_ENV === 'production') {
+      throw new ForbiddenException('개발 환경에서만 사용 가능합니다.');
+    }
+    return this.authService.devLogin();
+  }
 
   @Post('social')
   async socialLogin(@Body() dto: SocialLoginDto): Promise<AuthTokens> {

@@ -126,6 +126,17 @@ export class AuthService {
     await this.usersService.updateRefreshToken(userId, null);
   }
 
+  async devLogin(): Promise<AuthTokens> {
+    const user = await this.usersService.findOrCreateByOAuth({
+      provider: 'google',
+      providerId: 'dev-user-local',
+      email: 'dev@local.test',
+      nickname: 'Dev User',
+      profileImageUrl: null,
+    });
+    return this.login(user);
+  }
+
   /**
    * 프론트 SDK가 받은 OIDC ID Token을 JWKS로 검증하고 표준 클레임을 반환합니다.
    */
