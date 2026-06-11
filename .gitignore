@@ -37,6 +37,9 @@ lerna-debug.log*
 !.vscode/launch.json
 !.vscode/extensions.json
 
+# MCP config (contains API keys/secrets)
+.mcp.json
+
 # dotenv environment variable files
 .env
 .env.development.local
