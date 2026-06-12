@@ -5,7 +5,7 @@
 > 기획 화면 코드(S1~S14)는 참조용 앵커이며, 구현에 필요한 모든 계약은 본문에 포함되어 있다.
 >
 > **스택**: NestJS + TypeORM + PostgreSQL. 인증 JWT(access/refresh). API 문서 Swagger.
-> **현재 상태 한 줄**: "혼자서 프로젝트 생성/계획"은 동작. **협업·편집·대시보드·일부 입력**이 미구현 → 이 문서가 그 격차를 메운다.
+> **현재 상태 한 줄**: "혼자서 프로젝트 생성/계획"은 동작. **§8 1·3단계(스키마 컬럼, 카탈로그) 완료**. **협업·편집·대시보드·일부 입력**이 미구현 → 이 문서가 그 격차를 메운다.
 
 ---
 
@@ -25,23 +25,31 @@
 
 ## 1. 현재 구현 상태 (변경 출발점)
 
-### 1.1 기존 엔티티 (이미 존재)
+### 1.1 현재 엔티티 (실제 코드 기준)
+> **[done §8-1]** Project/Phase/Task 컬럼 추가 완료. `synchronize:true`라 마이그레이션 파일 없이 재시작 시 반영됨.
 ```
-Project(projects):  id(int), projectName(varchar), startDate(date), dueDate(date),
-                    budget(int), personality(jsonb {preparationStyle, additionalConsiderations}),
+Project(projects):  id(int), type(enum ProjectType, nullable)*, projectName(varchar),
+                    style(enum PreparationStyle, nullable)*, planLevel(enum PlanLevel, nullable),
+                    scheduleMode(enum ScheduleMode, default FIXED), startDate(date, nullable),
+                    dueDate(date), budget(int, nullable), color(varchar7, nullable),
+                    personality(jsonb {preparationStyle?(deprecated), additionalConsiderations}),
                     owner(ManyToOne User, CASCADE), phases(OneToMany), createdAt, updatedAt
-Phase(phases):      id(int), name, expectedStartDate(date), expectedEndDate(date),
-                    order(int), project(ManyToOne CASCADE), tasks(OneToMany), createdAt, updatedAt
-Task(tasks):        id(int), name, status(enum TaskStatus{TODO,IN_PROGRESS,DONE}),
-                    order(int), phase(ManyToOne CASCADE), createdAt, updatedAt
+Phase(phases):      id(int), name, expectedStartDate(date), expectedEndDate(date), order(int),
+                    memo(text, nullable), color(varchar7, nullable),
+                    project(ManyToOne CASCADE), tasks(OneToMany), createdAt, updatedAt
+Task(tasks):        id(int), name, status(enum TaskStatus{TODO,IN_PROGRESS,DONE}), order(int),
+                    assignee(enum TaskAssignee, default UNASSIGNED), dueDate(date, nullable),
+                    phase(ManyToOne CASCADE), createdAt, updatedAt
 User(users):        id(uuid), authProvider('kakao'|'google'|'apple'), oauthSub, nickname?,
                     email?, profileImageUrl?, refreshToken?, createdAt, updatedAt
 ```
+> `*` **type/style은 잠정 nullable** — §2.1 노트 참조. 클라가 값을 전송하는 §8-8(suggest/생성 확장)에서 NOT NULL로 조인다.
 
 ### 1.2 기존 엔드포인트 (이미 존재 — 재사용/수정)
 ```
 POST   /auth/social {provider,idToken}    POST /auth/refresh   POST /auth/logout
 POST   /auth/dev-login (dev)              GET  /auth/me
+GET    /project-types                     # [done §8-3] S3 카탈로그
 GET    /projects?cursor&limit             POST /projects/suggest   POST /projects   PATCH /projects/:id
 PATCH  /phases/:phaseId/order
 PATCH  /tasks/:taskId/status              PATCH /tasks/:taskId/order
@@ -64,9 +72,9 @@ export enum ScheduleMode { FIXED='FIXED', FLEXIBLE='FLEXIBLE' }
 ```
 | 컬럼 | 타입 | 변경 | 비고 (기획 근거) |
 |---|---|---|---|
-| `type` | enum ProjectType | [+] | S3 프로젝트 종류. CUSTOM=나만의 프로젝트 |
+| `type` | enum ProjectType, nullable* | [+] | S3 프로젝트 종류. CUSTOM=나만의 프로젝트 |
 | `projectName` | varchar | [=] | 표시 이름(자유). type=CUSTOM이면 사용자 입력 |
-| `style` | enum PreparationStyle | [+] | S5 준비 스타일(🥊/💵/🧐). personality.preparationStyle는 deprecated |
+| `style` | enum PreparationStyle, nullable* | [+] | S5 준비 스타일(🥊/💵/🧐). personality.preparationStyle는 deprecated |
 | `planLevel` | enum PlanLevel, nullable | [+] | S6 생성 깊이(📝/🗒️/✍🏻) |
 | `scheduleMode` | enum ScheduleMode, default FIXED | [+] | S5 "유연한 일정" 지원 |
 | `startDate` | date, **nullable** | [~] | FLEXIBLE일 때 null 허용 |
@@ -75,6 +83,8 @@ export enum ScheduleMode { FIXED='FIXED', FLEXIBLE='FLEXIBLE' }
 | `color` | varchar(7), nullable | [+] | S13/S14 대표 색상 (예 `#FF8A65`) |
 | `personality` | jsonb | [=] | additionalConsiderations(추가 고려사항 자유 텍스트) 보존 |
 | `owner` | ManyToOne User | [=] | 생성자. 멤버십과 병행(§2.5) |
+
+> `*` **type/style 잠정 nullable (구현 결정)**: 개념상 필수 필드지만, §8-1(스키마)만 먼저 들어간 시점에는 `POST /projects`가 아직 이 값을 보내지 않는다. NOT NULL로 두면 기존 생성 엔드포인트가 깨지므로 **잠정 nullable**로 구현했다. 클라가 값을 전송하기 시작하는 **§8-8(suggest/생성 확장)**에서 NOT NULL로 조이는 것이 목표다.
 
 ### 2.2 Phase (컬럼 추가)
 | 컬럼 | 타입 | 변경 | 비고 |
@@ -142,14 +152,18 @@ ProjectInvite: id(int), project(ManyToOne CASCADE), inviter(ManyToOne User),
 
 - U1: nickname은 1~20자 trim. UsersService에 `updateProfile(userId, dto)` 추가.
 
-### 4.2 Project 카탈로그 (S3)
+### 4.2 Project 카탈로그 (S3) — **[done §8-3]**
 | # | 메서드 · 경로 | 응답 |
 |---|---|---|
-| C1 | `GET /project-types` | `[{ type, label, available, defaultColor }]` |
+| C1 | `GET /project-types` ✅ | `[{ type, label, available, defaultColor }]` |
 
-- 정적 카탈로그(상수 배열). MVP: `WEDDING`만 `available:true`, 나머지 4종 `false`(🔒), `CUSTOM` `available:true`.
+- 정적 카탈로그(상수 배열). MVP: `WEDDING`·`CUSTOM` `available:true`, 나머지 4종 `false`(🔒).
 - 예: `{ type:'WEDDING', label:'결혼식', available:true, defaultColor:'#FF8A65' }`.
-- 별도 엔티티 불필요. `src/projects/project-type.catalog.ts` 상수로.
+- 별도 엔티티 불필요. 구현 위치:
+  - 카탈로그 상수 `src/projects/project-type.catalog.ts`
+  - 응답 DTO `src/projects/dto/project-type-response.dto.ts` (`@ApiProperty`)
+  - 컨트롤러 `src/projects/project-types.controller.ts` (`@Controller('project-types')`, JwtAuthGuard 보호) — `ProjectsModule`에 등록.
+- dev 스크립트 불필요: 인증 토큰만 있으면 되고 시드 데이터가 없어 `mint-dev-access-token.sh`+Swagger로 충분.
 
 ### 4.3 Project 생성/조회/수정 (S5~S9, S13, S14)
 | # | 메서드 · 경로 | Body / Query | 응답 | 화면 |
@@ -307,9 +321,9 @@ ProjectInvite: id(int), project(ManyToOne CASCADE), inviter(ManyToOne User),
 
 > 각 단계는 마이그레이션 → 엔티티 → DTO → 서비스 → 컨트롤러 → Swagger → (필요 시)dev 스크립트 → README 싱크 순.
 
-1. **스키마/마이그레이션**: Project/Phase/Task 컬럼 추가, enum 정의, budget/startDate nullable화. (이후 단계의 토대)
+1. ~~**스키마/마이그레이션**: Project/Phase/Task 컬럼 추가, enum 정의, budget/startDate nullable화.~~ ✅ **완료** (`synchronize:true`로 마이그레이션 파일 없음. type/style은 잠정 nullable — §2.1 노트).
 2. **User/Auth 보강**: U1 `PATCH /users/me`, naver provider 추가.
-3. **카탈로그**: C1 `GET /project-types`.
+3. ~~**카탈로그**: C1 `GET /project-types`.~~ ✅ **완료** (§4.2 참조).
 4. **Phase/Task CRUD**: PH1~PH3, T1~T4 (편집 화면 S14). — 협업과 독립, 먼저 가치 큼.
 5. **배정**: T5 `assign` + Task.assignee. (S12)
 6. **협업**: ProjectMember/ProjectInvite 엔티티, I1~I4, **권한 모델을 멤버십 기반으로 교체**(§3). owner→OWNER 멤버 마이그레이션.
@@ -322,7 +336,7 @@ ProjectInvite: id(int), project(ManyToOne CASCADE), inviter(ManyToOne User),
 
 ## 9. 완료 체크리스트 (화면 ↔ 구현 매핑)
 - [ ] S2 로그인 4종(kakao/google/apple/**naver**)
-- [ ] S3 종류 선택 + 🔒(`GET /project-types`)
+- [x] S3 종류 선택 + 🔒(`GET /project-types`) — 백엔드 완료
 - [ ] S4 닉네임 설정(`PATCH /users/me`)
 - [ ] S5 정보 입력(종류/일정/유연일정/스타일/고려사항) → suggest 입력 반영
 - [ ] S6 planLevel 3종 → 생성 깊이

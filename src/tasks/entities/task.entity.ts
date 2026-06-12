@@ -14,6 +14,13 @@ export enum TaskStatus {
   DONE = 'DONE',
 }
 
+export enum TaskAssignee {
+  OWNER = 'OWNER',
+  PARTNER = 'PARTNER',
+  TOGETHER = 'TOGETHER',
+  UNASSIGNED = 'UNASSIGNED',
+}
+
 @Entity('tasks')
 export class Task {
   @PrimaryGeneratedColumn()
@@ -31,6 +38,14 @@ export class Task {
 
   @Column({ type: 'int' })
   order: number;
+
+  // S12 배정 칩(나/파트너/함께/미배정)
+  @Column({ type: 'enum', enum: TaskAssignee, default: TaskAssignee.UNASSIGNED })
+  assignee: TaskAssignee;
+
+  // S13 항목별 마감일
+  @Column({ type: 'date', nullable: true })
+  dueDate: Date | null;
 
   @ManyToOne(() => Phase, (phase) => phase.tasks, {
     nullable: false,

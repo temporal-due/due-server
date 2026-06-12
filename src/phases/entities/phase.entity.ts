@@ -27,6 +27,14 @@ export class Phase {
   @Column({ type: 'int' })
   order: number;
 
+  // S14 듀 수정 모달 "메모를 입력하세요"
+  @Column({ type: 'text', nullable: true })
+  memo: string | null;
+
+  // S14 Phase 추가 시 색상 (예: #FFB74D)
+  @Column({ type: 'varchar', length: 7, nullable: true })
+  color: string | null;
+
   @ManyToOne(() => Project, (project) => project.phases, {
     nullable: false,
     onDelete: 'CASCADE',
