@@ -1,4 +1,4 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class SuggestTaskResponseDto {
   @ApiProperty()
@@ -28,29 +28,18 @@ export class SuggestPhaseResponseDto {
   tasks: SuggestTaskResponseDto[];
 }
 
-export class SuggestProjectPersonalityResponseDto {
-  @ApiProperty()
-  preparationStyle: string;
-
-  @ApiProperty()
-  additionalConsiderations: string;
-}
-
 export class SuggestProjectResponseDto {
   @ApiProperty()
   projectName: string;
 
-  @ApiProperty({ example: '2026-05-01' })
-  startDate: string;
+  @ApiPropertyOptional({ example: '2026-01-01' })
+  startDate?: string;
 
-  @ApiProperty({ example: '2026-08-31' })
+  @ApiProperty({ example: '2026-12-31' })
   dueDate: string;
 
-  @ApiProperty()
-  budget: number;
-
-  @ApiProperty({ type: () => SuggestProjectPersonalityResponseDto })
-  personality: SuggestProjectPersonalityResponseDto;
+  @ApiPropertyOptional({ description: '예산 추천값 (KRW)' })
+  budget?: number;
 
   @ApiProperty({ type: () => [SuggestPhaseResponseDto] })
   phases: SuggestPhaseResponseDto[];

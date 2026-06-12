@@ -32,8 +32,10 @@ export class TasksService {
       await manager.save(
         manager.create(Task, {
           name: taskDto.name,
-          status: taskDto.status,
+          status: taskDto.status ?? TaskStatus.TODO,
           order: taskDto.order,
+          assignee: taskDto.assignee ?? TaskAssignee.UNASSIGNED,
+          dueDate: taskDto.dueDate ? new Date(taskDto.dueDate) : null,
           phase,
         }),
       );

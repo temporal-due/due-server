@@ -4,8 +4,8 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
-import { Project } from './entities/projects.entity';
+import { DataSource, DeepPartial, Repository } from 'typeorm';
+import { Project, ScheduleMode } from './entities/projects.entity';
 import { User } from '../users/entities/user.entity';
 import { Phase } from '../phases/entities/phase.entity';
 import { Task, TaskStatus } from '../tasks/entities/task.entity';
@@ -75,23 +75,36 @@ export class ProjectsService {
   }
 
   async createProject(ownerId: string, dto: CreateProjectDto): Promise<Project> {
-    this.validateProjectDates(dto.startDate, dto.dueDate);
+    const scheduleMode = dto.scheduleMode ?? ScheduleMode.FIXED;
+    if (scheduleMode === ScheduleMode.FIXED) {
+      if (!dto.startDate) {
+        throw new BadRequestException('startDate is required when scheduleMode is FIXED');
+      }
+      this.validateProjectDates(dto.startDate, dto.dueDate);
+    } else if (dto.startDate) {
+      this.validateProjectDates(dto.startDate, dto.dueDate);
+    }
+
     return this.dataSource.transaction(async (manager) => {
       const owner = await manager.findOne(User, { where: { id: ownerId } });
       if (!owner) {
         throw new NotFoundException('Owner user not found');
       }
 
-      const savedProject = await manager.save(
-        manager.create(Project, {
-          projectName: dto.projectName,
-          startDate: new Date(dto.startDate),
-          dueDate: new Date(dto.dueDate),
-          budget: dto.budget,
-          personality: dto.personality,
-          owner,
-        }),
-      );
+      const projectData: DeepPartial<Project> = {
+        type: dto.type ?? null,
+        projectName: dto.projectName,
+        style: dto.style ?? null,
+        planLevel: dto.planLevel ?? null,
+        scheduleMode,
+        color: dto.color ?? null,
+        startDate: dto.startDate ? new Date(dto.startDate) : null,
+        dueDate: new Date(dto.dueDate),
+        budget: dto.budget !== undefined ? dto.budget : null,
+        personality: dto.personality ?? { additionalConsiderations: '' },
+        owner,
+      };
+      const savedProject = await manager.save(manager.create(Project, projectData));
 
       await manager.save(
         manager.create(ProjectMember, {
@@ -128,15 +141,20 @@ export class ProjectsService {
     await this.membersService.assertMember(projectId, userId);
 
     const effectiveStart =
-      dto.startDate ?? new Date(project.startDate).toISOString().split('T')[0];
+      dto.startDate ?? (project.startDate ? new Date(project.startDate).toISOString().split('T')[0] : null);
     const effectiveDue =
       dto.dueDate ?? new Date(project.dueDate).toISOString().split('T')[0];
-    this.validateProjectDates(effectiveStart, effectiveDue);
+    if (effectiveStart) {
+      this.validateProjectDates(effectiveStart, effectiveDue);
+    }
 
     if (dto.projectName !== undefined) project.projectName = dto.projectName;
     if (dto.startDate !== undefined) project.startDate = new Date(dto.startDate);
     if (dto.dueDate !== undefined) project.dueDate = new Date(dto.dueDate);
     if (dto.budget !== undefined) project.budget = dto.budget;
+    if (dto.color !== undefined) project.color = dto.color;
+    if (dto.style !== undefined) project.style = dto.style;
+    if (dto.scheduleMode !== undefined) project.scheduleMode = dto.scheduleMode;
     if (dto.personality !== undefined) project.personality = dto.personality;
 
     return this.projectRepository.save(project);
@@ -320,7 +338,8 @@ export class ProjectsService {
     return tasks;
   }
 
-  private validateProjectDates(startDate: string, dueDate: string): void {
+  private validateProjectDates(startDate: string | null, dueDate: string): void {
+    if (!startDate) return;
     if (new Date(startDate) > new Date(dueDate)) {
       throw new BadRequestException('startDate must be earlier than or equal to dueDate');
     }

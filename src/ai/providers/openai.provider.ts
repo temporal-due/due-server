@@ -7,7 +7,21 @@ import {
   SuggestProjectOutput,
 } from '../interfaces/project-suggest-provider.interface';
 
-// JSON Schema for GPT structured output — must match SuggestProjectOutput exactly
+const TYPE_LABELS: Record<string, string> = {
+  WEDDING: '결혼식 준비',
+  HOUSE: '집 마련',
+  HONEYMOON: '신혼여행',
+  CHILD: '육아 준비',
+  EXERCISE: '운동/건강',
+  CUSTOM: '나만의 프로젝트',
+};
+
+const STYLE_LABELS: Record<string, string> = {
+  ALL_IN: '최대한 좋은 것으로 아끼지 않기 (🥊)',
+  SAVE_MONEY: '알뜰하게 절약 우선 (💵)',
+  RECOMMEND: '전문가 추천 따르기 (🧐)',
+};
+
 const PROJECT_SUGGEST_SCHEMA = {
   name: 'project_suggestion',
   strict: true,
@@ -18,15 +32,6 @@ const PROJECT_SUGGEST_SCHEMA = {
       startDate: { type: 'string', description: 'ISO date string (YYYY-MM-DD)' },
       dueDate: { type: 'string', description: 'ISO date string (YYYY-MM-DD)' },
       budget: { type: 'integer', description: 'Estimated budget in KRW' },
-      personality: {
-        type: 'object',
-        properties: {
-          preparationStyle: { type: 'string' },
-          additionalConsiderations: { type: 'string' },
-        },
-        required: ['preparationStyle', 'additionalConsiderations'],
-        additionalProperties: false,
-      },
       phases: {
         type: 'array',
         items: {
@@ -55,7 +60,7 @@ const PROJECT_SUGGEST_SCHEMA = {
         },
       },
     },
-    required: ['projectName', 'startDate', 'dueDate', 'budget', 'personality', 'phases'],
+    required: ['projectName', 'startDate', 'dueDate', 'budget', 'phases'],
     additionalProperties: false,
   },
 };
@@ -73,16 +78,27 @@ export class OpenAiProvider implements ProjectSuggestProvider {
   async suggest(input: SuggestProjectInput): Promise<SuggestProjectOutput> {
     const today = new Date().toISOString().split('T')[0];
 
-    const userMessage = [
+    const typeLabel = TYPE_LABELS[input.type] ?? input.type;
+    const styleLabel = STYLE_LABELS[input.style] ?? input.style;
+    const isOutline = input.planLevel === 'OUTLINE';
+
+    const planLevelInstruction = isOutline
+      ? '각 Phase(단계)의 이름과 기간만 생성하고 tasks 배열은 반드시 빈 배열([])로 반환하세요.'
+      : '각 Phase(단계)마다 구체적인 Task(할 일) 목록을 상세히 생성하세요.';
+
+    const lines = [
+      `프로젝트 종류: ${typeLabel}`,
+      input.projectName ? `프로젝트 이름: ${input.projectName}` : null,
+      `준비 스타일: ${styleLabel}`,
       `오늘 날짜: ${today}`,
+      input.startDate ? `시작일: ${input.startDate}` : '시작일: 미정',
       `마감일: ${input.dueDate}`,
-      `준비 스타일: ${input.preparationStyle}`,
       input.additionalConsiderations
         ? `추가 고려사항: ${input.additionalConsiderations}`
         : null,
-    ]
-      .filter(Boolean)
-      .join('\n');
+    ];
+
+    const userMessage = lines.filter(Boolean).join('\n');
 
     const response = await this.client.chat.completions.create({
       model: 'gpt-4o-mini',
@@ -90,9 +106,10 @@ export class OpenAiProvider implements ProjectSuggestProvider {
         {
           role: 'system',
           content: [
-            '당신은 프로젝트 플래너입니다.',
-            '사용자가 입력한 마감일, 준비 스타일, 추가 고려사항을 바탕으로',
-            '프로젝트 생성에 필요한 기본 정보(이름, 예산, 단계, 할 일)를 추천해주세요.',
+            '당신은 한국 커플의 생활 이벤트 플래너입니다.',
+            '사용자가 입력한 프로젝트 종류, 준비 스타일, 일정, 추가 고려사항을 바탕으로',
+            '프로젝트 계획(이름, 예산, 단계, 할 일)을 한국어로 추천해주세요.',
+            planLevelInstruction,
             '날짜는 항상 YYYY-MM-DD 형식의 ISO date string으로 반환하세요.',
             '예산은 정수(KRW 기준)로 반환하세요.',
             '각 phase와 task의 order는 0부터 시작하는 정수입니다.',
@@ -114,6 +131,7 @@ export class OpenAiProvider implements ProjectSuggestProvider {
       throw new Error('AI provider returned empty response');
     }
 
-    return JSON.parse(content) as SuggestProjectOutput;
+    const parsed = JSON.parse(content) as SuggestProjectOutput;
+    return parsed;
   }
 }

@@ -13,7 +13,7 @@ import { Phase } from '../../phases/entities/phase.entity';
 export interface ProjectPersonality {
   /** @deprecated style 컬럼으로 대체. additionalConsiderations만 보존한다. */
   preparationStyle?: string;
-  additionalConsiderations: string;
+  additionalConsiderations?: string;
 }
 
 export enum ProjectType {
@@ -66,14 +66,14 @@ export class Project {
 
   // FLEXIBLE 일정이면 startDate 없이 dueDate만으로 운영 → nullable.
   @Column({ type: 'date', nullable: true })
-  startDate: Date;
+  startDate: Date | null;
 
   @Column({ type: 'date' })
   dueDate: Date;
 
   // 기획 S5에 예산 입력 UI 없음 → 필수 해제.
   @Column({ type: 'int', nullable: true })
-  budget: number;
+  budget: number | null;
 
   // S13/S14 대표 색상 (예: #FF8A65)
   @Column({ type: 'varchar', length: 7, nullable: true })

@@ -125,6 +125,29 @@ dev 토큰 2개를 발급하고, user1이 프로젝트를 만든 뒤 다음 신�
 
 ---
 
+### "AI suggest 엔드포인트(P1)와 프로젝트 생성 확장(P2)을 확인하고 싶어요"
+
+```bash
+pnpm dev:reset   # 먼저 실행
+pnpm suggest:dev
+```
+
+dev 토큰을 발급하고, 다음 엔드포인트들을 순서대로 호출해 happy-path를 재현합니다:
+
+- P1 `POST /projects/suggest` `planLevel=MANUAL` — AI 미호출, 빈 계획 즉시 반환
+- P1 `POST /projects/suggest` `planLevel=OUTLINE` — Phase만 생성, tasks=[]
+- P1 `POST /projects/suggest` `planLevel=DETAILED` — Phase + Task 상세 생성
+- P2 `POST /projects` — type/style/planLevel/color/memo/assignee 포함 전체 생성
+- P5 `PATCH /projects/:id` — color/style 수정
+
+**언제 쓰나요?**
+- S5~S7 AI 생성 흐름(type·style·planLevel 입력 → suggest → 계획 확인)을 한 번에 점검할 때
+- OpenAI 프롬프트나 planLevel 분기 로직을 수정한 뒤 검증할 때
+
+> **전제**: OUTLINE·DETAILED 테스트는 `.env`에 `OPENAI_API_KEY`가 설정되어 있어야 합니다. MANUAL은 API 키 없이도 동작합니다.
+
+---
+
 ### "프로젝트 상세·대시보드·삭제·초기화 엔드포인트를 확인하고 싶어요"
 
 ```bash

@@ -1,4 +1,4 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
   ArrayMinSize,
@@ -7,11 +7,19 @@ import {
   IsEnum,
   IsInt,
   IsNotEmpty,
+  IsOptional,
   IsString,
+  Matches,
   Min,
   ValidateNested,
 } from 'class-validator';
-import { TaskStatus } from '../../tasks/entities/task.entity';
+import { TaskAssignee, TaskStatus } from '../../tasks/entities/task.entity';
+import {
+  PlanLevel,
+  PreparationStyle,
+  ProjectType,
+  ScheduleMode,
+} from '../entities/projects.entity';
 
 export class CreateTaskDto {
   @ApiProperty({ example: 'Define requirements' })
@@ -19,14 +27,25 @@ export class CreateTaskDto {
   @IsNotEmpty()
   name: string;
 
-  @ApiProperty({ enum: TaskStatus })
+  @ApiPropertyOptional({ enum: TaskStatus, default: TaskStatus.TODO })
+  @IsOptional()
   @IsEnum(TaskStatus)
-  status: TaskStatus;
+  status?: TaskStatus;
 
   @ApiProperty({ example: 0 })
   @IsInt()
   @Min(0)
   order: number;
+
+  @ApiPropertyOptional({ enum: TaskAssignee, default: TaskAssignee.UNASSIGNED })
+  @IsOptional()
+  @IsEnum(TaskAssignee)
+  assignee?: TaskAssignee;
+
+  @ApiPropertyOptional({ example: '2026-05-12' })
+  @IsOptional()
+  @IsDateString()
+  dueDate?: string;
 }
 
 export class CreatePhaseDto {
@@ -48,48 +67,83 @@ export class CreatePhaseDto {
   @Min(0)
   order: number;
 
+  @ApiPropertyOptional({ example: '메모 내용' })
+  @IsOptional()
+  @IsString()
+  memo?: string;
+
+  @ApiPropertyOptional({ example: '#FFB74D' })
+  @IsOptional()
+  @Matches(/^#[0-9A-Fa-f]{6}$/, { message: 'color must be a hex color like #RRGGBB' })
+  color?: string;
+
+  // planLevel=OUTLINE이면 빈 배열 허용
   @ApiProperty({ type: () => [CreateTaskDto] })
   @IsArray()
-  @ArrayMinSize(1)
+  @ArrayMinSize(0)
   @ValidateNested({ each: true })
   @Type(() => CreateTaskDto)
   tasks: CreateTaskDto[];
 }
 
 export class CreateProjectPersonalityDto {
-  @ApiProperty({ example: 'systematic' })
+  @ApiPropertyOptional({ example: 'Focus on quality' })
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  preparationStyle: string;
-
-  @ApiProperty({ example: 'Focus on quality', required: false })
-  @IsString()
-  additionalConsiderations: string;
+  additionalConsiderations?: string;
 }
 
 export class CreateProjectDto {
-  @ApiProperty({ example: 'My Project' })
+  @ApiPropertyOptional({ enum: ProjectType })
+  @IsOptional()
+  @IsEnum(ProjectType)
+  type?: ProjectType;
+
+  @ApiProperty({ example: '결혼식' })
   @IsString()
   @IsNotEmpty()
   projectName: string;
 
-  @ApiProperty({ example: '2026-05-01' })
-  @IsDateString()
-  startDate: string;
+  @ApiPropertyOptional({ enum: PreparationStyle })
+  @IsOptional()
+  @IsEnum(PreparationStyle)
+  style?: PreparationStyle;
 
-  @ApiProperty({ example: '2026-08-31' })
+  @ApiPropertyOptional({ enum: PlanLevel })
+  @IsOptional()
+  @IsEnum(PlanLevel)
+  planLevel?: PlanLevel;
+
+  @ApiPropertyOptional({ enum: ScheduleMode, default: ScheduleMode.FIXED })
+  @IsOptional()
+  @IsEnum(ScheduleMode)
+  scheduleMode?: ScheduleMode;
+
+  @ApiPropertyOptional({ example: '#FF8A65' })
+  @IsOptional()
+  @Matches(/^#[0-9A-Fa-f]{6}$/, { message: 'color must be a hex color like #RRGGBB' })
+  color?: string;
+
+  @ApiPropertyOptional({ example: '2026-01-01', description: 'scheduleMode=FLEXIBLE이면 생략 가능' })
+  @IsOptional()
+  @IsDateString()
+  startDate?: string;
+
+  @ApiProperty({ example: '2026-12-31' })
   @IsDateString()
   dueDate: string;
 
-  @ApiProperty({ example: 5000000 })
+  @ApiPropertyOptional({ example: 50000000 })
+  @IsOptional()
   @IsInt()
   @Min(0)
-  budget: number;
+  budget?: number;
 
-  @ApiProperty({ type: () => CreateProjectPersonalityDto })
+  @ApiPropertyOptional({ type: () => CreateProjectPersonalityDto })
+  @IsOptional()
   @ValidateNested()
   @Type(() => CreateProjectPersonalityDto)
-  personality: CreateProjectPersonalityDto;
+  personality?: CreateProjectPersonalityDto;
 
   @ApiProperty({ type: () => [CreatePhaseDto] })
   @IsArray()

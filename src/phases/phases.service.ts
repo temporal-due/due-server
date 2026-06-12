@@ -43,6 +43,8 @@ export class PhasesService {
           expectedStartDate: new Date(phaseDto.expectedStartDate),
           expectedEndDate: new Date(phaseDto.expectedEndDate),
           order: phaseDto.order,
+          memo: phaseDto.memo ?? null,
+          color: phaseDto.color ?? null,
           project,
         }),
       );

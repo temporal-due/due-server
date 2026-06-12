@@ -69,6 +69,7 @@ pnpm me:dev     # /auth/me 빠른 smoke test
 pnpm crud:dev    # Phase/Task CRUD 엔드포인트 happy-path 호출 확인
 pnpm invite:dev    # 초대 코드 발급→수락→멤버 목록→제거 happy-path 확인
 pnpm dashboard:dev # 프로젝트 상세·대시보드·삭제·초기화 happy-path 확인
+pnpm suggest:dev   # AI suggest(planLevel=MANUAL/OUTLINE/DETAILED) + 프로젝트 생성 확장 확인
 ```
 
 서버 종료: `make down`

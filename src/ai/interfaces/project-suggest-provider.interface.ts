@@ -1,8 +1,13 @@
 export const PROJECT_SUGGEST_PROVIDER = 'PROJECT_SUGGEST_PROVIDER';
 
 export interface SuggestProjectInput {
+  type: string;
+  projectName?: string;
+  startDate?: string;
   dueDate: string;
-  preparationStyle: string;
+  scheduleMode?: string;
+  style: string;
+  planLevel?: string;
   additionalConsiderations?: string;
 }
 
@@ -22,13 +27,9 @@ export interface SuggestPhaseOutput {
 
 export interface SuggestProjectOutput {
   projectName: string;
-  startDate: string;
+  startDate?: string;
   dueDate: string;
-  budget: number;
-  personality: {
-    preparationStyle: string;
-    additionalConsiderations: string;
-  };
+  budget?: number;
   phases: SuggestPhaseOutput[];
 }
 
