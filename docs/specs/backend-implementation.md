@@ -242,14 +242,14 @@ ProjectInvite: id(int), project(ManyToOne CASCADE), inviter(ManyToOne User),
 - order 중복은 같은 프로젝트 내에서 거부(`BadRequestException`). 날짜 역전은 기존 `validatePhaseDates` 재사용.
 - 응답은 관계 없이 재조회해 `project.owner`(refreshToken 포함) 노출을 막음. 구현: `src/phases/{phases.service,phases.controller}.ts`, `dto/create-phase-request.dto.ts`, `dto/update-phase.dto.ts`. PH1 라우트는 `projects/:id` 프리픽스라 `ProjectsController`에 둠.
 
-### 4.5 Task(항목) CRUD + 배정 (S12, S14) — **CRUD [done §8-4], 배정(T5) §8-5**
+### 4.5 Task(항목) CRUD + 배정 (S12, S14) — **[done §8-4·§8-5]**
 | # | 메서드 · 경로 | Body | 화면 |
 |---|---|---|---|
 | T1 ✅ | `POST /phases/:phaseId/tasks` | `{ name, status?, order, assignee?, dueDate? }` | "새로운 항목 추가하기" |
 | T2 ✅ | `PATCH /tasks/:taskId` | `{ name?, dueDate?, order? }` | 항목 편집 |
 | T3 ✅ | `DELETE /tasks/:taskId` (204) | — | 항목 삭제 |
 | T4 ✅ | `POST /tasks/bulk-delete` (204) | `{ ids: number[] }` | "선택 항목 모두 삭제하기" |
-| T5 | `PATCH /tasks/:taskId/assign` | `{ assignee: TaskAssignee }` | S12 배정 (§8-5) |
+| T5 ✅ | `PATCH /tasks/:taskId/assign` | `{ assignee: TaskAssignee }` | S12 배정 |
 | T6 | `PATCH /tasks/:taskId/status` *(기존 유지)* | `{ status }` | 상태 |
 | T7 | `PATCH /tasks/:taskId/order` *(기존 유지)* | `{ order }` | 정렬 |
 
@@ -337,7 +337,7 @@ ProjectInvite: id(int), project(ManyToOne CASCADE), inviter(ManyToOne User),
 2. **User/Auth 보강**: U1 `PATCH /users/me`, naver provider 추가.
 3. ~~**카탈로그**: C1 `GET /project-types`.~~ ✅ **완료** (§4.2 참조).
 4. ~~**Phase/Task CRUD**: PH1~PH3, T1~T4 (편집 화면 S14).~~ ✅ **완료** (§4.4·§4.5 참조. 권한은 잠정 owner 기반, §8-6에서 멤버십 교체. `pnpm crud:dev`로 happy-path 재현).
-5. **배정**: T5 `assign` + Task.assignee. (S12)
+5. ~~**배정**: T5 `assign` + Task.assignee. (S12)~~ ✅ **완료** (§4.5 참조).
 6. **협업**: ProjectMember/ProjectInvite 엔티티, I1~I4, **권한 모델을 멤버십 기반으로 교체**(§3). owner→OWNER 멤버 마이그레이션.
 7. **조회/대시보드**: P4 `GET /projects/:id`, P6 dashboard(progress·upcoming·groups), P7 delete, P8 reset.
 8. **AI 확장**: P1 suggest 입력 확장 + provider 인터페이스/프롬프트(§6).
@@ -356,6 +356,6 @@ ProjectInvite: id(int), project(ManyToOne CASCADE), inviter(ManyToOne User),
 - [~] S9 계획 검토 — Phase/Task 편집 API 완료(§8-4). `GET /projects/:id`(P4)는 §8-7
 - [ ] S10 파트너 초대/코드 연결(invites)
 - [ ] S11 프로필(profileImageUrl 저장)
-- [ ] S12 담당 배정(`assign`)
+- [x] S12 담당 배정(`assign`) — 백엔드 완료(§8-5)
 - [ ] S13 홈 대시보드(progress·upcoming·역할별/듀별 보기)
 - [~] S14 편집 — Phase/Task CRUD·색상·메모·삭제 완료(§8-4). "다시 시작하기"(reset P8)는 §8-7

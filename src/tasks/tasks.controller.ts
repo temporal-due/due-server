@@ -18,6 +18,7 @@ import { TasksService } from './tasks.service';
 import { UpdateTaskStatusDto } from './dto/update-task-status.dto';
 import { UpdateTaskOrderDto } from './dto/update-task-order.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
+import { UpdateTaskAssigneeDto } from './dto/update-task-assignee.dto';
 import { BulkDeleteTasksDto } from './dto/bulk-delete-tasks.dto';
 
 @ApiTags('Tasks')
@@ -52,6 +53,15 @@ export class TasksController {
     @Param('taskId', ParseIntPipe) taskId: number,
   ) {
     return this.tasksService.deleteTask(user.id, taskId);
+  }
+
+  // T5: 담당 배정
+  @Patch(':taskId/assign')
+  updateAssignee(
+    @Param('taskId', ParseIntPipe) taskId: number,
+    @Body() dto: UpdateTaskAssigneeDto,
+  ) {
+    return this.tasksService.updateAssignee(taskId, dto.assignee);
   }
 
   // T6: 상태(기존 유지)

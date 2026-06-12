@@ -118,6 +118,16 @@ export class TasksService {
     await this.tasksRepository.remove(tasks);
   }
 
+  // T5: 담당 배정.
+  async updateAssignee(taskId: number, assignee: TaskAssignee): Promise<Task> {
+    const task = await this.tasksRepository.findOne({ where: { id: taskId } });
+    if (!task) {
+      throw new NotFoundException('Task not found');
+    }
+    task.assignee = assignee;
+    return this.tasksRepository.save(task);
+  }
+
   async updateStatus(taskId: number, status: TaskStatus): Promise<Task> {
     const task = await this.tasksRepository.findOne({ where: { id: taskId } });
     if (!task) {
