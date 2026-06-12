@@ -17,6 +17,7 @@
     "dev:reset": "bash scripts/dev-reset-all.sh",
     "crud:dev": "bash scripts/dev-phase-task-crud.sh",
     "invite:dev": "bash scripts/dev-invite-flow.sh",
+    "dashboard:dev": "bash scripts/dev-dashboard.sh",
     "readme:check": "bash scripts/check-readme-sync.sh",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
     "test": "jest",

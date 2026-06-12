@@ -5,7 +5,7 @@
 > 기획 화면 코드(S1~S14)는 참조용 앵커이며, 구현에 필요한 모든 계약은 본문에 포함되어 있다.
 >
 > **스택**: NestJS + TypeORM + PostgreSQL. 인증 JWT(access/refresh). API 문서 Swagger.
-> **현재 상태 한 줄**: "혼자서 프로젝트 생성/계획"은 동작. **§8 1·3·4·5·6단계(스키마, 카탈로그, Phase/Task CRUD·배정·협업) 완료**. **대시보드·일부 입력**이 미구현 → 이 문서가 그 격차를 메운다.
+> **현재 상태 한 줄**: §8 1·3·4·5·6·7단계(스키마, 카탈로그, Phase/Task CRUD·배정·협업·조회/대시보드) **완료**. AI 확장(§8-8)이 남음.
 
 ---
 
@@ -176,15 +176,21 @@ ProjectInvite: id(int), project(ManyToOne CASCADE), inviter(ManyToOne User),
 | P1 | `POST /projects/suggest` *(확장)* | `{ type, projectName?, startDate?, dueDate, scheduleMode?, style, planLevel?, additionalConsiderations? }` | 전체 초안(phases+tasks 포함, 미저장) | S5→S7 |
 | P2 | `POST /projects` *(확장)* | 아래 §4.3.1 | 저장된 Project(phases·tasks·members 포함) | S6/S9 |
 | P3 | `GET /projects` *(유지)* | cursor·limit | `{data,nextCursor,hasMore}` | S13 목록 |
-| P4 | `GET /projects/:id` *(신규)* | — | Project 상세 + progress + members | S9/S13 |
+| P4 ✅ | `GET /projects/:id` | — | Project 상세 + progress + members | S9/S13 |
 | P5 | `PATCH /projects/:id` *(확장)* | `{ projectName?, startDate?, dueDate?, budget?, color?, style?, scheduleMode?, personality? }` | 갱신본 | S14 |
-| P6 | `GET /projects/:id/dashboard` *(신규)* | `?groupBy=role\|due&filter=task\|schedule` | §4.3.2 | S13 |
-| P7 | `DELETE /projects/:id` *(신규)* | — | 204 | S14 삭제 |
-| P8 | `POST /projects/:id/reset` *(신규)* | — | 비워진 Project | S14 "다시 시작하기" |
+| P6 ✅ | `GET /projects/:id/dashboard` | `?groupBy=role\|due&filter=task\|schedule` | §4.3.2 | S13 |
+| P7 ✅ | `DELETE /projects/:id` | — | 204 | S14 삭제 |
+| P8 ✅ | `POST /projects/:id/reset` | — | 비워진 Project | S14 "다시 시작하기" |
 
 **P1 변경 핵심**: 현재 suggest는 `dueDate`만 받아 **AI가 종류를 모른다**. `type`(+CUSTOM이면 projectName)·`style`·`planLevel`을 입력에 추가하고, AI provider 인터페이스 `SuggestProjectInput`도 동일 필드로 확장한다(§6).
 
-**P8 reset**: 해당 프로젝트의 모든 Phase/Task 삭제(CASCADE 활용), 멤버/초대는 정책 결정 필요 — MVP는 **Phase/Task만 초기화**하고 프로젝트·멤버는 유지.
+**P8 reset**: Phase/Task만 초기화, 프로젝트·멤버 유지. ✅ 완료. `dataSource.getRepository(Phase).delete({ project: { id } })`로 구현(tasks CASCADE).
+
+**P4/P6/P7/P8 구현 결정 (§8-7 완료)**:
+- P4: `relations: { phases: { tasks: true } }` 로드 후 `progress` 파생 계산(done/inProgress/notStarted/total/percent), members 추가 조회. `owner` 관계는 로드 안 함(refreshToken 노출 방지).
+- P6: `groupBy=role` → assignee별 버킷(OWNER 라벨은 OWNER 멤버 닉네임), `groupBy=due` → Phase별. `filter=schedule` → dueDate 있는 Task만 날짜순. `upcoming` = dueDate 임박·미완료 상위 5개.
+- P7: OWNER only(`assertMember(requireOwner=true)`). `projectRepository.remove()`로 CASCADE.
+- 구현: `src/projects/projects.service.ts`, `dto/dashboard-query.dto.ts`. 라우트 선언 순서: 하위 고정 경로(`:id/phases` 등) → `:id/dashboard` → `:id` (NestJS 라우트 매칭 안전 보장).
 
 #### 4.3.1 P2 `POST /projects` 요청 스키마
 ```jsonc
@@ -342,7 +348,7 @@ ProjectInvite: id(int), project(ManyToOne CASCADE), inviter(ManyToOne User),
 4. ~~**Phase/Task CRUD**: PH1~PH3, T1~T4 (편집 화면 S14).~~ ✅ **완료** (§4.4·§4.5 참조. 권한은 잠정 owner 기반, §8-6에서 멤버십 교체. `pnpm crud:dev`로 happy-path 재현).
 5. ~~**배정**: T5 `assign` + Task.assignee. (S12)~~ ✅ **완료** (§4.5 참조).
 6. ~~**협업**: ProjectMember/ProjectInvite 엔티티, I1~I4, **권한 모델을 멤버십 기반으로 교체**(§3). owner→OWNER 멤버 마이그레이션.~~ ✅ **완료** (§4.6 참조. `pnpm invite:dev`로 happy-path 재현).
-7. **조회/대시보드**: P4 `GET /projects/:id`, P6 dashboard(progress·upcoming·groups), P7 delete, P8 reset.
+7. ~~**조회/대시보드**: P4 `GET /projects/:id`, P6 dashboard(progress·upcoming·groups), P7 delete, P8 reset.~~ ✅ **완료** (§4.3 참조. `pnpm dashboard:dev`로 happy-path 재현).
 8. **AI 확장**: P1 suggest 입력 확장 + provider 인터페이스/프롬프트(§6).
 
 각 단계 완료 기준 = 해당 화면(S#)의 동작에 필요한 API가 Swagger에 노출되고, dev 스크립트로 happy-path가 재현되며, `pnpm readme:check` 통과.
@@ -356,9 +362,9 @@ ProjectInvite: id(int), project(ManyToOne CASCADE), inviter(ManyToOne User),
 - [ ] S5 정보 입력(종류/일정/유연일정/스타일/고려사항) → suggest 입력 반영
 - [ ] S6 planLevel 3종 → 생성 깊이
 - [ ] S7 AI 생성(provider 확장)
-- [~] S9 계획 검토 — Phase/Task 편집 API 완료(§8-4). `GET /projects/:id`(P4)는 §8-7
+- [x] S9 계획 검토 — `GET /projects/:id`(P4) 완료(§8-7)
 - [x] S10 파트너 초대/코드 연결(invites) — 백엔드 완료(§8-6)
 - [ ] S11 프로필(profileImageUrl 저장)
 - [x] S12 담당 배정(`assign`) — 백엔드 완료(§8-5)
-- [ ] S13 홈 대시보드(progress·upcoming·역할별/듀별 보기)
-- [~] S14 편집 — Phase/Task CRUD·색상·메모·삭제 완료(§8-4). "다시 시작하기"(reset P8)는 §8-7
+- [x] S13 홈 대시보드 — P6 dashboard 완료(§8-7)
+- [x] S14 편집 — Phase/Task CRUD·색상·메모·삭제·초기화(P8) 완료(§8-4·§8-7)

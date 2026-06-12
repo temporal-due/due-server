@@ -125,6 +125,27 @@ dev 토큰 2개를 발급하고, user1이 프로젝트를 만든 뒤 다음 신�
 
 ---
 
+### "프로젝트 상세·대시보드·삭제·초기화 엔드포인트를 확인하고 싶어요"
+
+```bash
+pnpm dev:reset     # 먼저 실행
+pnpm dashboard:dev
+```
+
+dev 토큰을 발급하고, 여러 Phase/Task가 있는 프로젝트를 만든 뒤 다음 엔드포인트들을 호출합니다:
+
+- P4 `GET /projects/:id` — 상세(phases·tasks·progress·members)
+- P6 `GET /projects/:id/dashboard?groupBy=role&filter=task` — 역할별 그룹 대시보드
+- P6 `GET /projects/:id/dashboard?groupBy=due&filter=schedule` — Phase별·일정 필터 대시보드
+- P7 `DELETE /projects/:id` — 프로젝트 삭제 (204)
+- P8 `POST /projects/:id/reset` — Phase/Task 초기화(프로젝트·멤버 유지)
+
+**언제 쓰나요?**
+- S9(계획 검토), S13(홈 대시보드) 화면이 의존하는 API를 한 번에 점검할 때
+- 대시보드 파생 계산(진행률·upcoming·그룹) 코드를 수정한 뒤 검증할 때
+
+---
+
 ## 전형적인 개발 시작 순서
 
 ```bash

@@ -20,6 +20,7 @@ import { MembersService } from '../members/members.service';
 import { InvitesService } from '../invites/invites.service';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
+import { DashboardQueryDto } from './dto/dashboard-query.dto';
 import { SuggestProjectRequestDto } from './dto/suggest-project-request.dto';
 import { CreatePhaseRequestDto } from '../phases/dto/create-phase-request.dto';
 import { CreateInviteDto } from '../invites/dto/create-invite.dto';
@@ -40,12 +41,10 @@ export class ProjectsController {
     private readonly invitesService: InvitesService,
   ) {}
 
+  // ── 경로 없는 / 고정 경로 ─────────────────────────────────
   @Get()
   @UseGuards(JwtAuthGuard)
-  getProjects(
-    @CurrentUser() user: User,
-    @Query() query: CursorPaginationQueryDto,
-  ) {
+  getProjects(@CurrentUser() user: User, @Query() query: CursorPaginationQueryDto) {
     return this.projectsService.listProjects(user.id, query);
   }
 
@@ -57,24 +56,12 @@ export class ProjectsController {
 
   @Post()
   @UseGuards(JwtAuthGuard)
-  createProject(
-    @CurrentUser() user: User,
-    @Body() dto: CreateProjectDto,
-  ) {
+  createProject(@CurrentUser() user: User, @Body() dto: CreateProjectDto) {
     return this.projectsService.createProject(user.id, dto);
   }
 
-  @Patch(':id')
-  @UseGuards(JwtAuthGuard)
-  updateProject(
-    @CurrentUser() user: User,
-    @Param('id', ParseIntPipe) id: number,
-    @Body() dto: UpdateProjectDto,
-  ) {
-    return this.projectsService.updateProject(user.id, id, dto);
-  }
-
-  // PH1: Due 추가하기
+  // ── :id + 하위 고정 경로 (구체적인 것부터) ─────────────────
+  // PH1
   @Post(':id/phases')
   @UseGuards(JwtAuthGuard)
   createPhase(
@@ -85,7 +72,7 @@ export class ProjectsController {
     return this.phasesService.createPhase(user.id, id, dto);
   }
 
-  // I1: 초대 코드 발급
+  // I1
   @Post(':id/invites')
   @UseGuards(JwtAuthGuard)
   createInvite(
@@ -96,7 +83,28 @@ export class ProjectsController {
     return this.invitesService.createInvite(user.id, id, dto);
   }
 
-  // I3: 멤버 목록 조회
+  // P8: Phase/Task 초기화 (OWNER만)
+  @Post(':id/reset')
+  @UseGuards(JwtAuthGuard)
+  resetProject(
+    @CurrentUser() user: User,
+    @Param('id', ParseIntPipe) id: number,
+  ) {
+    return this.projectsService.resetProject(user.id, id);
+  }
+
+  // P6: 대시보드
+  @Get(':id/dashboard')
+  @UseGuards(JwtAuthGuard)
+  getDashboard(
+    @CurrentUser() user: User,
+    @Param('id', ParseIntPipe) id: number,
+    @Query() query: DashboardQueryDto,
+  ) {
+    return this.projectsService.getDashboard(user.id, id, query);
+  }
+
+  // I3
   @Get(':id/members')
   @UseGuards(JwtAuthGuard)
   async listMembers(
@@ -107,7 +115,7 @@ export class ProjectsController {
     return this.membersService.listMembers(id);
   }
 
-  // I4: 멤버 제거 (OWNER만)
+  // I4 (OWNER만)
   @Delete(':id/members/:userId')
   @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.NO_CONTENT)
@@ -118,5 +126,38 @@ export class ProjectsController {
   ) {
     await this.membersService.assertMember(id, user.id, true);
     return this.membersService.removeMember(id, targetUserId);
+  }
+
+  // ── :id 단일 파라미터 경로 (마지막에) ──────────────────────
+  // P4: 프로젝트 상세
+  @Get(':id')
+  @UseGuards(JwtAuthGuard)
+  getProjectDetail(
+    @CurrentUser() user: User,
+    @Param('id', ParseIntPipe) id: number,
+  ) {
+    return this.projectsService.getProjectDetail(user.id, id);
+  }
+
+  // P5
+  @Patch(':id')
+  @UseGuards(JwtAuthGuard)
+  updateProject(
+    @CurrentUser() user: User,
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdateProjectDto,
+  ) {
+    return this.projectsService.updateProject(user.id, id, dto);
+  }
+
+  // P7: 프로젝트 삭제 (OWNER만)
+  @Delete(':id')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.NO_CONTENT)
+  deleteProject(
+    @CurrentUser() user: User,
+    @Param('id', ParseIntPipe) id: number,
+  ) {
+    return this.projectsService.deleteProject(user.id, id);
   }
 }
