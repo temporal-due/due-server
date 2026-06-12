@@ -5,7 +5,7 @@
 > 기획 화면 코드(S1~S14)는 참조용 앵커이며, 구현에 필요한 모든 계약은 본문에 포함되어 있다.
 >
 > **스택**: NestJS + TypeORM + PostgreSQL. 인증 JWT(access/refresh). API 문서 Swagger.
-> **현재 상태 한 줄**: "혼자서 프로젝트 생성/계획"은 동작. **§8 1·3·4단계(스키마 컬럼, 카탈로그, Phase/Task CRUD) 완료**. **협업·배정·대시보드·일부 입력**이 미구현 → 이 문서가 그 격차를 메운다.
+> **현재 상태 한 줄**: "혼자서 프로젝트 생성/계획"은 동작. **§8 1·3·4·5·6단계(스키마, 카탈로그, Phase/Task CRUD·배정·협업) 완료**. **대시보드·일부 입력**이 미구현 → 이 문서가 그 격차를 메운다.
 
 ---
 
@@ -237,7 +237,7 @@ ProjectInvite: id(int), project(ManyToOne CASCADE), inviter(ManyToOne User),
 | PH4 | `PATCH /phases/:phaseId/order` *(기존 유지)* | `{ order }` | 정렬 |
 
 - PH2는 기존 PH4를 흡수 가능하나, 하위호환 위해 둘 다 유지.
-- **구현 결정**: 권한은 §3 멤버십 모델이 아직 미구현(§8-6)이라 **현 시점은 owner 기반**(`phase→project→owner.id===userId`)으로 검증. §8-6에서 `assertMember`로 교체 예정.
+- **구현 결정**: 권한은 §8-6 완료 이후 **멤버십 기반** `assertMember(projectId, userId)`로 교체됨. (이전: owner 기반)
 - PH3은 `@HttpCode(204)`, Task는 FK `ON DELETE CASCADE`로 함께 삭제.
 - order 중복은 같은 프로젝트 내에서 거부(`BadRequestException`). 날짜 역전은 기존 `validatePhaseDates` 재사용.
 - 응답은 관계 없이 재조회해 `project.owner`(refreshToken 포함) 노출을 막음. 구현: `src/phases/{phases.service,phases.controller}.ts`, `dto/create-phase-request.dto.ts`, `dto/update-phase.dto.ts`. PH1 라우트는 `projects/:id` 프리픽스라 `ProjectsController`에 둠.
@@ -253,22 +253,25 @@ ProjectInvite: id(int), project(ManyToOne CASCADE), inviter(ManyToOne User),
 | T6 | `PATCH /tasks/:taskId/status` *(기존 유지)* | `{ status }` | 상태 |
 | T7 | `PATCH /tasks/:taskId/order` *(기존 유지)* | `{ order }` | 정렬 |
 
-- T4: `ids` dedupe 후 전부 조회해 (a) 모두 존재 (b) 모두 같은 프로젝트 (c) 모두 owner 소유인지 검증 후 일괄 삭제. 위반 시 각각 404/`BadRequest`/`Forbidden`.
-- 권한은 PH와 동일하게 **현 시점 owner 기반**(`task→phase→project→owner`), §8-6에서 멤버십으로 교체.
+- T4: `ids` dedupe 후 전부 조회해 (a) 모두 존재 (b) 모두 같은 프로젝트 (c) 멤버인지 검증 후 일괄 삭제. 위반 시 각각 404/`BadRequest`/`Forbidden`.
+- 권한은 §8-6 이후 **멤버십 기반** `assertMember`로 교체 완료.
 - order 중복은 같은 Phase 내에서 거부. T1의 `status`·`assignee` 생략 시 각각 `TODO`/`UNASSIGNED` 기본값.
 - 응답은 관계 없이 재조회(refreshToken 노출 방지). 구현: `src/tasks/{tasks.service,tasks.controller}.ts`, `dto/create-task-request.dto.ts`, `dto/update-task.dto.ts`, `dto/bulk-delete-tasks.dto.ts`. T1 라우트는 `phases/:phaseId` 프리픽스라 `PhasesController`에 둠.
 - dev 스크립트: `scripts/dev-phase-task-crud.sh`(`pnpm crud:dev`) — 프로젝트 생성→PH1·PH2·T1·T2·T4·PH3 happy-path 재현.
 
-### 4.6 협업: 초대 & 멤버 (S10)
+### 4.6 협업: 초대 & 멤버 (S10) — **[done §8-6]**
 | # | 메서드 · 경로 | Body | 응답 | 화면 |
 |---|---|---|---|---|
-| I1 | `POST /projects/:id/invites` | `{ message? }` | `{ code, message, expiresAt }` | "초대하기" |
-| I2 | `POST /invites/accept` | `{ code }` | 가입된 `{ projectId, role:'PARTNER' }` | "상대방 코드로 연결하기" |
-| I3 | `GET /projects/:id/members` | — | `[{ userId, nickname, role }]` | 역할 표시 |
-| I4 | `DELETE /projects/:id/members/:userId` | — | 204 | 멤버 제거(OWNER만) |
+| I1 ✅ | `POST /projects/:id/invites` | `{ message? }` | `{ code, message, expiresAt }` | "초대하기" |
+| I2 ✅ | `POST /invites/accept` | `{ code }` | 가입된 `{ projectId, role:'PARTNER' }` | "상대방 코드로 연결하기" |
+| I3 ✅ | `GET /projects/:id/members` | — | `[{ userId, nickname, role }]` | 역할 표시 |
+| I4 ✅ | `DELETE /projects/:id/members/:userId` | — | 204 | 멤버 제거(OWNER만) |
 
 - I1: 8자리 영숫자 `code` 생성(충돌 시 재시도), `expiresAt = now + 7d`, status=PENDING. 기본 message `"우리 {projectName} 계획 세워봤어. 같이 해보자! 🎉"`.
 - I2: 유효(PENDING·미만료) code → ProjectMember(PARTNER) 생성, invite status=ACCEPTED. 본인 프로젝트/이미 멤버/파트너 정원 초과 시 적절한 4xx.
+- **구현 결정**: `assertMember(projectId, userId, requireOwner?)` 헬퍼를 `MembersService`에 두고 PH/T/I 전 라우트에서 재사용. 이전 `owner.id === userId` 검증 전면 교체. 프로젝트 생성 시 OWNER 멤버 자동 등록. `GET /projects` 역시 멤버십 기반으로 파트너 프로젝트까지 포함.
+- 신규 모듈: `src/members/`, `src/invites/`. 구현: `members.service.ts`(assertMember·listMembers·removeMember), `invites.service.ts`(createInvite·acceptInvite), `invites.controller.ts`(I2).
+- dev 스크립트: `scripts/dev-invite-flow.sh`(`pnpm invite:dev`) — 프로젝트 생성→I1·I2·I3·I4·I3재조회 happy-path.
 
 ---
 
@@ -338,7 +341,7 @@ ProjectInvite: id(int), project(ManyToOne CASCADE), inviter(ManyToOne User),
 3. ~~**카탈로그**: C1 `GET /project-types`.~~ ✅ **완료** (§4.2 참조).
 4. ~~**Phase/Task CRUD**: PH1~PH3, T1~T4 (편집 화면 S14).~~ ✅ **완료** (§4.4·§4.5 참조. 권한은 잠정 owner 기반, §8-6에서 멤버십 교체. `pnpm crud:dev`로 happy-path 재현).
 5. ~~**배정**: T5 `assign` + Task.assignee. (S12)~~ ✅ **완료** (§4.5 참조).
-6. **협업**: ProjectMember/ProjectInvite 엔티티, I1~I4, **권한 모델을 멤버십 기반으로 교체**(§3). owner→OWNER 멤버 마이그레이션.
+6. ~~**협업**: ProjectMember/ProjectInvite 엔티티, I1~I4, **권한 모델을 멤버십 기반으로 교체**(§3). owner→OWNER 멤버 마이그레이션.~~ ✅ **완료** (§4.6 참조. `pnpm invite:dev`로 happy-path 재현).
 7. **조회/대시보드**: P4 `GET /projects/:id`, P6 dashboard(progress·upcoming·groups), P7 delete, P8 reset.
 8. **AI 확장**: P1 suggest 입력 확장 + provider 인터페이스/프롬프트(§6).
 
@@ -354,7 +357,7 @@ ProjectInvite: id(int), project(ManyToOne CASCADE), inviter(ManyToOne User),
 - [ ] S6 planLevel 3종 → 생성 깊이
 - [ ] S7 AI 생성(provider 확장)
 - [~] S9 계획 검토 — Phase/Task 편집 API 완료(§8-4). `GET /projects/:id`(P4)는 §8-7
-- [ ] S10 파트너 초대/코드 연결(invites)
+- [x] S10 파트너 초대/코드 연결(invites) — 백엔드 완료(§8-6)
 - [ ] S11 프로필(profileImageUrl 저장)
 - [x] S12 담당 배정(`assign`) — 백엔드 완료(§8-5)
 - [ ] S13 홈 대시보드(progress·upcoming·역할별/듀별 보기)

@@ -101,6 +101,30 @@ dev 토큰을 발급하고, 베이스 프로젝트를 하나 생성한 뒤 다�
 
 ---
 
+### "협업(초대/멤버) 엔드포인트가 잘 동작하는지 확인하고 싶어요"
+
+```bash
+pnpm dev:reset   # 먼저 실행해서 user1(dev@local.test) 생성
+pnpm invite:dev
+```
+
+dev 토큰 2개를 발급하고, user1이 프로젝트를 만든 뒤 다음 신규 엔드포인트들을
+순서대로 호출해 happy-path를 재현합니다:
+
+- I1 `POST /projects/:id/invites` — 초대 코드 발급
+- I2 `POST /invites/accept` — user2가 코드 수락 (PARTNER 등록)
+- I3 `GET /projects/:id/members` — 멤버 목록 조회 (OWNER+PARTNER = 2)
+- I4 `DELETE /projects/:id/members/:userId` — user2 제거
+- I3 재조회 — OWNER만 남았는지 확인
+
+**언제 쓰나요?**
+- S10 파트너 초대/코드 연결 화면이 의존하는 API를 한 번에 점검할 때
+- 협업 코드를 수정한 뒤 전체 흐름이 깨지지 않았는지 확인할 때
+
+> **전제**: `pnpm dev:reset` 완료 후 서버가 떠 있어야 합니다. user2는 스크립트가 직접 DB에 삽입합니다.
+
+---
+
 ## 전형적인 개발 시작 순서
 
 ```bash

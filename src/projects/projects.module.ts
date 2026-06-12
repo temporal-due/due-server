@@ -8,9 +8,17 @@ import { Project } from './entities/projects.entity';
 import { User } from '../users/entities/user.entity';
 import { PhasesModule } from '../phases/phases.module';
 import { AiModule } from '../ai/ai.module';
+import { MembersModule } from '../members/members.module';
+import { InvitesModule } from '../invites/invites.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Project, User]), PhasesModule, AiModule],
+  imports: [
+    TypeOrmModule.forFeature([Project, User]),
+    PhasesModule,
+    AiModule,
+    MembersModule,
+    InvitesModule,
+  ],
   controllers: [ProjectsController, ProjectTypesController],
   providers: [ProjectsService, ProjectSuggestService],
   exports: [ProjectsService],

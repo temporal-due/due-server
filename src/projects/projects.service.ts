@@ -1,6 +1,5 @@
 import {
   BadRequestException,
-  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -8,6 +7,8 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import { Project } from './entities/projects.entity';
 import { User } from '../users/entities/user.entity';
+import { ProjectMember, ProjectRole } from '../members/entities/project-member.entity';
+import { MembersService } from '../members/members.service';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
 import { PhasesService } from '../phases/phases.service';
@@ -22,21 +23,27 @@ export class ProjectsService {
   constructor(
     private readonly dataSource: DataSource,
     private readonly phasesService: PhasesService,
+    private readonly membersService: MembersService,
     @InjectRepository(Project)
     private readonly projectRepository: Repository<Project>,
   ) {}
 
   async listProjects(
-    ownerId: string,
+    userId: string,
     query: CursorPaginationQueryDto,
   ): Promise<CursorPaginatedDto<Project>> {
     const limit = query.limit ?? 20;
     const cursorId = query.cursor ? decodeCursor(query.cursor) : null;
 
+    // 멤버십 기반: 유저가 OWNER 또는 PARTNER인 프로젝트만 반환.
+    const projectIds = await this.membersService.getProjectIdsForUser(userId);
+    if (projectIds.length === 0) {
+      return { data: [], nextCursor: null, hasMore: false };
+    }
+
     const qb = this.projectRepository
       .createQueryBuilder('project')
-      .leftJoin('project.owner', 'owner')
-      .where('owner.id = :ownerId', { ownerId })
+      .where('project.id IN (:...projectIds)', { projectIds })
       .orderBy('project.id', 'DESC')
       .take(limit + 1);
 
@@ -72,6 +79,15 @@ export class ProjectsService {
         }),
       );
 
+      // 프로젝트 생성자를 OWNER 멤버로 자동 등록.
+      await manager.save(
+        manager.create(ProjectMember, {
+          project: savedProject,
+          user: owner,
+          role: ProjectRole.OWNER,
+        }),
+      );
+
       await this.phasesService.createManyInTransaction(manager, savedProject, dto.phases);
 
       const createdProject = await manager.findOne(Project, {
@@ -98,22 +114,16 @@ export class ProjectsService {
   }
 
   async updateProject(
-    ownerId: string,
+    userId: string,
     projectId: number,
     dto: UpdateProjectDto,
   ): Promise<Project> {
-    const project = await this.projectRepository.findOne({
-      where: { id: projectId },
-      relations: { owner: true },
-    });
-
+    const project = await this.projectRepository.findOneBy({ id: projectId });
     if (!project) {
       throw new NotFoundException('Project not found');
     }
-
-    if (project.owner.id !== ownerId) {
-      throw new ForbiddenException('Access denied');
-    }
+    // 멤버라면 누구나 프로젝트 설정 편집 가능.
+    await this.membersService.assertMember(projectId, userId);
 
     const effectiveStart =
       dto.startDate ?? new Date(project.startDate).toISOString().split('T')[0];

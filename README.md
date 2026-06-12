@@ -66,7 +66,8 @@ pnpm dev:reset  # DB 초기화 + 개발 유저 시드
 ```bash
 pnpm token:dev  # 개발용 JWT 액세스 토큰 출력
 pnpm me:dev     # /auth/me 빠른 smoke test
-pnpm crud:dev   # Phase/Task CRUD 엔드포인트 happy-path 호출 확인
+pnpm crud:dev    # Phase/Task CRUD 엔드포인트 happy-path 호출 확인
+pnpm invite:dev  # 초대 코드 발급→수락→멤버 목록→제거 happy-path 확인
 ```
 
 서버 종료: `make down`

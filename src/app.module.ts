@@ -12,6 +12,10 @@ import { Phase } from './phases/entities/phase.entity';
 import { Task } from './tasks/entities/task.entity';
 import { PhasesModule } from './phases/phases.module';
 import { TasksModule } from './tasks/tasks.module';
+import { MembersModule } from './members/members.module';
+import { InvitesModule } from './invites/invites.module';
+import { ProjectMember } from './members/entities/project-member.entity';
+import { ProjectInvite } from './invites/entities/project-invite.entity';
 
 @Module({
   imports: [
@@ -25,7 +29,7 @@ import { TasksModule } from './tasks/tasks.module';
         username: config.get('DB_USERNAME', 'postgres'),
         password: config.get('DB_PASSWORD', 'postgres'),
         database: config.get('DB_DATABASE', 'postgres'),
-        entities: [User, Project, Phase, Task],
+        entities: [User, Project, Phase, Task, ProjectMember, ProjectInvite],
         synchronize: true,
       }),
       inject: [ConfigService],
@@ -35,6 +39,8 @@ import { TasksModule } from './tasks/tasks.module';
     ProjectsModule,
     PhasesModule,
     TasksModule,
+    MembersModule,
+    InvitesModule,
   ],
   controllers: [AppController],
   providers: [AppService],

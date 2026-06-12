@@ -1,8 +1,9 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { EntityManager, Repository } from 'typeorm';
 import { Phase } from './entities/phase.entity';
 import { Project } from '../projects/entities/projects.entity';
+import { MembersService } from '../members/members.service';
 import { CreatePhaseDto } from '../projects/dto/create-project.dto';
 import { CreatePhaseRequestDto } from './dto/create-phase-request.dto';
 import { UpdatePhaseDto } from './dto/update-phase.dto';
@@ -15,6 +16,7 @@ export class PhasesService {
     private readonly phasesRepository: Repository<Phase>,
     @InjectRepository(Project)
     private readonly projectsRepository: Repository<Project>,
+    private readonly membersService: MembersService,
     private readonly tasksService: TasksService,
   ) {}
 
@@ -55,16 +57,11 @@ export class PhasesService {
     projectId: number,
     dto: CreatePhaseRequestDto,
   ): Promise<Phase> {
-    const project = await this.projectsRepository.findOne({
-      where: { id: projectId },
-      relations: { owner: true },
-    });
+    const project = await this.projectsRepository.findOneBy({ id: projectId });
     if (!project) {
       throw new NotFoundException('Project not found');
     }
-    if (project.owner.id !== userId) {
-      throw new ForbiddenException('Access denied');
-    }
+    await this.membersService.assertMember(projectId, userId);
 
     this.validatePhaseDates(dto.expectedStartDate, dto.expectedEndDate);
     await this.assertPhaseOrderAvailable(projectId, dto.order);
@@ -79,13 +76,12 @@ export class PhasesService {
       project,
     });
     const saved = await this.phasesRepository.save(phase);
-    // 응답에 project.owner(refreshToken 포함)가 새어나가지 않도록 관계 없이 재조회한다.
     return this.phasesRepository.findOneByOrFail({ id: saved.id });
   }
 
   // PH2: 듀 수정 모달. 부분 수정.
   async updatePhase(userId: string, phaseId: number, dto: UpdatePhaseDto): Promise<Phase> {
-    const phase = await this.findOwnedPhase(userId, phaseId);
+    const phase = await this.findAuthorizedPhase(userId, phaseId);
 
     const toIso = (d: Date | string) => new Date(d).toISOString().split('T')[0];
     const effectiveStart = dto.expectedStartDate ?? toIso(phase.expectedStartDate);
@@ -109,7 +105,7 @@ export class PhasesService {
 
   // PH3: Phase 삭제. 하위 Task는 FK ON DELETE CASCADE로 함께 제거된다.
   async deletePhase(userId: string, phaseId: number): Promise<void> {
-    const phase = await this.findOwnedPhase(userId, phaseId);
+    const phase = await this.findAuthorizedPhase(userId, phaseId);
     await this.phasesRepository.remove(phase);
   }
 
@@ -123,18 +119,16 @@ export class PhasesService {
     return this.phasesRepository.save(phase);
   }
 
-  // phase → project → owner 권한 확인 후 Phase 반환.
-  private async findOwnedPhase(userId: string, phaseId: number): Promise<Phase> {
+  // Phase 존재 확인 + 멤버 권한 확인 후 Phase 반환 (project 관계 포함).
+  private async findAuthorizedPhase(userId: string, phaseId: number): Promise<Phase> {
     const phase = await this.phasesRepository.findOne({
       where: { id: phaseId },
-      relations: { project: { owner: true } },
+      relations: { project: true },
     });
     if (!phase) {
       throw new NotFoundException('Phase not found');
     }
-    if (phase.project.owner.id !== userId) {
-      throw new ForbiddenException('Access denied');
-    }
+    await this.membersService.assertMember(phase.project.id, userId);
     return phase;
   }
 

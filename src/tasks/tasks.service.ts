@@ -1,6 +1,5 @@
 import {
   BadRequestException,
-  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -8,9 +7,11 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { EntityManager, In, Repository } from 'typeorm';
 import { Task, TaskAssignee, TaskStatus } from './entities/task.entity';
 import { Phase } from '../phases/entities/phase.entity';
+import { MembersService } from '../members/members.service';
 import { CreateTaskDto } from '../projects/dto/create-project.dto';
 import { CreateTaskRequestDto } from './dto/create-task-request.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
+import { TaskAssignee as TA } from './entities/task.entity';
 
 @Injectable()
 export class TasksService {
@@ -19,6 +20,7 @@ export class TasksService {
     private readonly tasksRepository: Repository<Task>,
     @InjectRepository(Phase)
     private readonly phasesRepository: Repository<Phase>,
+    private readonly membersService: MembersService,
   ) {}
 
   async createManyInTransaction(
@@ -46,14 +48,12 @@ export class TasksService {
   ): Promise<Task> {
     const phase = await this.phasesRepository.findOne({
       where: { id: phaseId },
-      relations: { project: { owner: true } },
+      relations: { project: true },
     });
     if (!phase) {
       throw new NotFoundException('Phase not found');
     }
-    if (phase.project.owner.id !== userId) {
-      throw new ForbiddenException('Access denied');
-    }
+    await this.membersService.assertMember(phase.project.id, userId);
 
     await this.assertTaskOrderAvailable(phaseId, dto.order);
 
@@ -66,13 +66,12 @@ export class TasksService {
       phase,
     });
     const saved = await this.tasksRepository.save(task);
-    // 응답에 phase.project.owner(refreshToken 포함)가 새어나가지 않도록 관계 없이 재조회한다.
     return this.tasksRepository.findOneByOrFail({ id: saved.id });
   }
 
   // T2: 항목 편집(이름/마감일/순서).
   async updateTask(userId: string, taskId: number, dto: UpdateTaskDto): Promise<Task> {
-    const task = await this.findOwnedTask(userId, taskId);
+    const task = await this.findAuthorizedTask(userId, taskId);
 
     if (dto.order !== undefined && dto.order !== task.order) {
       await this.assertTaskOrderAvailable(task.phase.id, dto.order, task.id);
@@ -88,16 +87,16 @@ export class TasksService {
 
   // T3: 항목 삭제.
   async deleteTask(userId: string, taskId: number): Promise<void> {
-    const task = await this.findOwnedTask(userId, taskId);
+    const task = await this.findAuthorizedTask(userId, taskId);
     await this.tasksRepository.remove(task);
   }
 
-  // T4: 선택 항목 일괄 삭제. 모두 한 프로젝트 소속 + 본인 소유여야 한다.
+  // T4: 선택 항목 일괄 삭제. 모두 한 프로젝트 소속 + 멤버 소유여야 한다.
   async bulkDelete(userId: string, ids: number[]): Promise<void> {
     const uniqueIds = [...new Set(ids)];
     const tasks = await this.tasksRepository.find({
       where: { id: In(uniqueIds) },
-      relations: { phase: { project: { owner: true } } },
+      relations: { phase: { project: true } },
     });
 
     if (tasks.length !== uniqueIds.length) {
@@ -109,17 +108,13 @@ export class TasksService {
       throw new BadRequestException('All tasks must belong to the same project');
     }
 
-    for (const task of tasks) {
-      if (task.phase.project.owner.id !== userId) {
-        throw new ForbiddenException('Access denied');
-      }
-    }
+    await this.membersService.assertMember([...projectIds][0], userId);
 
     await this.tasksRepository.remove(tasks);
   }
 
   // T5: 담당 배정.
-  async updateAssignee(taskId: number, assignee: TaskAssignee): Promise<Task> {
+  async updateAssignee(taskId: number, assignee: TA): Promise<Task> {
     const task = await this.tasksRepository.findOne({ where: { id: taskId } });
     if (!task) {
       throw new NotFoundException('Task not found');
@@ -148,18 +143,16 @@ export class TasksService {
     return this.tasksRepository.save(task);
   }
 
-  // task → phase → project → owner 권한 확인 후 Task 반환.
-  private async findOwnedTask(userId: string, taskId: number): Promise<Task> {
+  // Task 존재 확인 + 멤버 권한 확인 후 Task 반환 (phase.project 관계 포함).
+  private async findAuthorizedTask(userId: string, taskId: number): Promise<Task> {
     const task = await this.tasksRepository.findOne({
       where: { id: taskId },
-      relations: { phase: { project: { owner: true } } },
+      relations: { phase: { project: true } },
     });
     if (!task) {
       throw new NotFoundException('Task not found');
     }
-    if (task.phase.project.owner.id !== userId) {
-      throw new ForbiddenException('Access denied');
-    }
+    await this.membersService.assertMember(task.phase.project.id, userId);
     return task;
   }
 
