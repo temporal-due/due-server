@@ -81,6 +81,14 @@ pnpm scenario:onboarding  # 시나리오 1: 온보딩→첫 프로젝트 생성�
 pnpm scenario:collab      # 시나리오 2: 파트너 협업→배정→대시보드→완료→정리
 ```
 
+같은 시나리오를 자동화 테스트(CI)로 돌리려면 (Docker 필요 — Testcontainers가 일회용 Postgres를 띄움):
+
+```bash
+pnpm test:e2e   # supertest + 실제 Postgres로 유저 스토리 e2e 검증
+```
+
+테스트 철학·구조는 [`docs/specs/testing.md`](docs/specs/testing.md) 참조.
+
 서버 종료: `make down`
 
 ---

@@ -14,6 +14,14 @@
 > pnpm scenario:collab      # 시나리오 2만
 > ```
 > 스크립트는 `scripts/dev-scenario-*.sh`, 공용 헬퍼는 `scripts/lib/dev-lib.sh`.
+>
+> **자동화 테스트(CI용)**: 같은 시나리오를 supertest 기반 e2e 테스트로도 옮겨 두었다.
+> ```bash
+> pnpm test:e2e             # Testcontainers로 일회용 Postgres를 띄워 전 시나리오 검증
+> ```
+> 셸 스크립트는 떠 있는 서버에 수동으로 찔러 보는 용도(빠른 탐색), e2e 테스트는
+> 실제 Postgres 컨테이너 + 격리된 상태로 회귀를 막는 용도다. 자세한 철학·구조는
+> [`docs/specs/testing.md`](./testing.md) 참조.
 
 ---
 
