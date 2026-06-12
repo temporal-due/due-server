@@ -15,6 +15,7 @@
     "token:dev": "bash scripts/mint-dev-access-token.sh",
     "me:dev": "bash -ec 'TOKEN=\"$(bash scripts/mint-dev-access-token.sh)\"; curl -sS -H \"Authorization: Bearer ${TOKEN}\" http://localhost:3000/auth/me'",
     "dev:reset": "bash scripts/dev-reset-all.sh",
+    "crud:dev": "bash scripts/dev-phase-task-crud.sh",
     "readme:check": "bash scripts/check-readme-sync.sh",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
     "test": "jest",

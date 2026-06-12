@@ -76,6 +76,31 @@ OpenAPI JSON 스펙은 `http://localhost:3000/api-docs-json`에서 받을 수 �
 
 ---
 
+### "Phase/Task 편집(S14) 엔드포인트가 잘 동작하는지 확인하고 싶어요"
+
+```bash
+pnpm crud:dev
+```
+
+dev 토큰을 발급하고, 베이스 프로젝트를 하나 생성한 뒤 다음 신규 엔드포인트들을
+순서대로 호출해 happy-path를 재현합니다:
+
+- PH1 `POST /projects/:id/phases` — Due 추가
+- PH2 `PATCH /phases/:phaseId` — 듀 수정
+- T1 `POST /phases/:phaseId/tasks` — 항목 추가
+- T2 `PATCH /tasks/:taskId` — 항목 편집
+- T4 `POST /tasks/bulk-delete` — 선택 항목 일괄 삭제
+- PH3 `DELETE /phases/:phaseId` — 듀 삭제
+
+**언제 쓰나요?**
+- Phase/Task CRUD 코드를 수정한 뒤 전체 흐름이 깨지지 않았는지 한 번에 확인할 때
+- S14 편집 화면이 의존하는 API가 모두 떠 있는지 점검할 때
+
+> **전제**: 서버가 떠 있어야 합니다(`make dev` 또는 `make dev-local`). 토큰만 있으면 되고
+> 별도 시드 데이터는 스크립트가 직접 프로젝트를 만들어 충당합니다.
+
+---
+
 ## 전형적인 개발 시작 순서
 
 ```bash

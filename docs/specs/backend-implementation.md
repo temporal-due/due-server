@@ -5,7 +5,7 @@
 > 기획 화면 코드(S1~S14)는 참조용 앵커이며, 구현에 필요한 모든 계약은 본문에 포함되어 있다.
 >
 > **스택**: NestJS + TypeORM + PostgreSQL. 인증 JWT(access/refresh). API 문서 Swagger.
-> **현재 상태 한 줄**: "혼자서 프로젝트 생성/계획"은 동작. **§8 1·3단계(스키마 컬럼, 카탈로그) 완료**. **협업·편집·대시보드·일부 입력**이 미구현 → 이 문서가 그 격차를 메운다.
+> **현재 상태 한 줄**: "혼자서 프로젝트 생성/계획"은 동작. **§8 1·3·4단계(스키마 컬럼, 카탈로그, Phase/Task CRUD) 완료**. **협업·배정·대시보드·일부 입력**이 미구현 → 이 문서가 그 격차를 메운다.
 
 ---
 
@@ -51,7 +51,12 @@ POST   /auth/social {provider,idToken}    POST /auth/refresh   POST /auth/logout
 POST   /auth/dev-login (dev)              GET  /auth/me
 GET    /project-types                     # [done §8-3] S3 카탈로그
 GET    /projects?cursor&limit             POST /projects/suggest   POST /projects   PATCH /projects/:id
+POST   /projects/:id/phases               # [done §8-4] PH1
+PATCH  /phases/:phaseId                   # [done §8-4] PH2    DELETE /phases/:phaseId   # [done §8-4] PH3
 PATCH  /phases/:phaseId/order
+POST   /phases/:phaseId/tasks             # [done §8-4] T1
+PATCH  /tasks/:taskId                     # [done §8-4] T2    DELETE /tasks/:taskId     # [done §8-4] T3
+POST   /tasks/bulk-delete                 # [done §8-4] T4
 PATCH  /tasks/:taskId/status              PATCH /tasks/:taskId/order
 ```
 
@@ -223,29 +228,36 @@ ProjectInvite: id(int), project(ManyToOne CASCADE), inviter(ManyToOne User),
 - `groupBy=role`: assignee(OWNER→닉네임 라벨, PARTNER, TOGETHER, UNASSIGNED)로 그룹. `groupBy=due`: Phase로 그룹.
 - `filter=task`: 모든 Task. `filter=schedule`: dueDate 있는 Task만 날짜순.
 
-### 4.4 Phase(듀) CRUD (S14)
+### 4.4 Phase(듀) CRUD (S14) — **[done §8-4]**
 | # | 메서드 · 경로 | Body | 화면 |
 |---|---|---|---|
-| PH1 | `POST /projects/:id/phases` | `{ name, expectedStartDate, expectedEndDate, order, memo?, color? }` | "Due 추가하기" |
-| PH2 | `PATCH /phases/:phaseId` | `{ name?, expectedStartDate?, expectedEndDate?, order?, memo?, color? }` | 듀 수정 모달 |
-| PH3 | `DELETE /phases/:phaseId` | — | 듀 삭제 |
+| PH1 ✅ | `POST /projects/:id/phases` | `{ name, expectedStartDate, expectedEndDate, order, memo?, color? }` | "Due 추가하기" |
+| PH2 ✅ | `PATCH /phases/:phaseId` | `{ name?, expectedStartDate?, expectedEndDate?, order?, memo?, color? }` | 듀 수정 모달 |
+| PH3 ✅ | `DELETE /phases/:phaseId` (204) | — | 듀 삭제 |
 | PH4 | `PATCH /phases/:phaseId/order` *(기존 유지)* | `{ order }` | 정렬 |
 
 - PH2는 기존 PH4를 흡수 가능하나, 하위호환 위해 둘 다 유지.
-- 권한: phase→project→멤버십 확인.
+- **구현 결정**: 권한은 §3 멤버십 모델이 아직 미구현(§8-6)이라 **현 시점은 owner 기반**(`phase→project→owner.id===userId`)으로 검증. §8-6에서 `assertMember`로 교체 예정.
+- PH3은 `@HttpCode(204)`, Task는 FK `ON DELETE CASCADE`로 함께 삭제.
+- order 중복은 같은 프로젝트 내에서 거부(`BadRequestException`). 날짜 역전은 기존 `validatePhaseDates` 재사용.
+- 응답은 관계 없이 재조회해 `project.owner`(refreshToken 포함) 노출을 막음. 구현: `src/phases/{phases.service,phases.controller}.ts`, `dto/create-phase-request.dto.ts`, `dto/update-phase.dto.ts`. PH1 라우트는 `projects/:id` 프리픽스라 `ProjectsController`에 둠.
 
-### 4.5 Task(항목) CRUD + 배정 (S12, S14)
+### 4.5 Task(항목) CRUD + 배정 (S12, S14) — **CRUD [done §8-4], 배정(T5) §8-5**
 | # | 메서드 · 경로 | Body | 화면 |
 |---|---|---|---|
-| T1 | `POST /phases/:phaseId/tasks` | `{ name, status?, order, assignee?, dueDate? }` | "새로운 항목 추가하기" |
-| T2 | `PATCH /tasks/:taskId` | `{ name?, dueDate?, order? }` | 항목 편집 |
-| T3 | `DELETE /tasks/:taskId` | — | 항목 삭제 |
-| T4 | `POST /tasks/bulk-delete` | `{ ids: number[] }` | "선택 항목 모두 삭제하기" |
-| T5 | `PATCH /tasks/:taskId/assign` | `{ assignee: TaskAssignee }` | S12 배정 |
+| T1 ✅ | `POST /phases/:phaseId/tasks` | `{ name, status?, order, assignee?, dueDate? }` | "새로운 항목 추가하기" |
+| T2 ✅ | `PATCH /tasks/:taskId` | `{ name?, dueDate?, order? }` | 항목 편집 |
+| T3 ✅ | `DELETE /tasks/:taskId` (204) | — | 항목 삭제 |
+| T4 ✅ | `POST /tasks/bulk-delete` (204) | `{ ids: number[] }` | "선택 항목 모두 삭제하기" |
+| T5 | `PATCH /tasks/:taskId/assign` | `{ assignee: TaskAssignee }` | S12 배정 (§8-5) |
 | T6 | `PATCH /tasks/:taskId/status` *(기존 유지)* | `{ status }` | 상태 |
 | T7 | `PATCH /tasks/:taskId/order` *(기존 유지)* | `{ order }` | 정렬 |
 
-- T4: 모두 같은 프로젝트 소속인지 검증 후 일괄 삭제.
+- T4: `ids` dedupe 후 전부 조회해 (a) 모두 존재 (b) 모두 같은 프로젝트 (c) 모두 owner 소유인지 검증 후 일괄 삭제. 위반 시 각각 404/`BadRequest`/`Forbidden`.
+- 권한은 PH와 동일하게 **현 시점 owner 기반**(`task→phase→project→owner`), §8-6에서 멤버십으로 교체.
+- order 중복은 같은 Phase 내에서 거부. T1의 `status`·`assignee` 생략 시 각각 `TODO`/`UNASSIGNED` 기본값.
+- 응답은 관계 없이 재조회(refreshToken 노출 방지). 구현: `src/tasks/{tasks.service,tasks.controller}.ts`, `dto/create-task-request.dto.ts`, `dto/update-task.dto.ts`, `dto/bulk-delete-tasks.dto.ts`. T1 라우트는 `phases/:phaseId` 프리픽스라 `PhasesController`에 둠.
+- dev 스크립트: `scripts/dev-phase-task-crud.sh`(`pnpm crud:dev`) — 프로젝트 생성→PH1·PH2·T1·T2·T4·PH3 happy-path 재현.
 
 ### 4.6 협업: 초대 & 멤버 (S10)
 | # | 메서드 · 경로 | Body | 응답 | 화면 |
@@ -324,7 +336,7 @@ ProjectInvite: id(int), project(ManyToOne CASCADE), inviter(ManyToOne User),
 1. ~~**스키마/마이그레이션**: Project/Phase/Task 컬럼 추가, enum 정의, budget/startDate nullable화.~~ ✅ **완료** (`synchronize:true`로 마이그레이션 파일 없음. type/style은 잠정 nullable — §2.1 노트).
 2. **User/Auth 보강**: U1 `PATCH /users/me`, naver provider 추가.
 3. ~~**카탈로그**: C1 `GET /project-types`.~~ ✅ **완료** (§4.2 참조).
-4. **Phase/Task CRUD**: PH1~PH3, T1~T4 (편집 화면 S14). — 협업과 독립, 먼저 가치 큼.
+4. ~~**Phase/Task CRUD**: PH1~PH3, T1~T4 (편집 화면 S14).~~ ✅ **완료** (§4.4·§4.5 참조. 권한은 잠정 owner 기반, §8-6에서 멤버십 교체. `pnpm crud:dev`로 happy-path 재현).
 5. **배정**: T5 `assign` + Task.assignee. (S12)
 6. **협업**: ProjectMember/ProjectInvite 엔티티, I1~I4, **권한 모델을 멤버십 기반으로 교체**(§3). owner→OWNER 멤버 마이그레이션.
 7. **조회/대시보드**: P4 `GET /projects/:id`, P6 dashboard(progress·upcoming·groups), P7 delete, P8 reset.
@@ -341,9 +353,9 @@ ProjectInvite: id(int), project(ManyToOne CASCADE), inviter(ManyToOne User),
 - [ ] S5 정보 입력(종류/일정/유연일정/스타일/고려사항) → suggest 입력 반영
 - [ ] S6 planLevel 3종 → 생성 깊이
 - [ ] S7 AI 생성(provider 확장)
-- [ ] S9 계획 검토(`GET /projects/:id`, Phase/Task 편집)
+- [~] S9 계획 검토 — Phase/Task 편집 API 완료(§8-4). `GET /projects/:id`(P4)는 §8-7
 - [ ] S10 파트너 초대/코드 연결(invites)
 - [ ] S11 프로필(profileImageUrl 저장)
 - [ ] S12 담당 배정(`assign`)
 - [ ] S13 홈 대시보드(progress·upcoming·역할별/듀별 보기)
-- [ ] S14 편집(Phase/Task CRUD, 색상, 메모, 삭제, 초기화)
+- [~] S14 편집 — Phase/Task CRUD·색상·메모·삭제 완료(§8-4). "다시 시작하기"(reset P8)는 §8-7
