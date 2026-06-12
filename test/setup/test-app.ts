@@ -1,5 +1,5 @@
 import { INestApplication, ValidationPipe } from '@nestjs/common';
-import { Test } from '@nestjs/testing';
+import { Test, TestingModuleBuilder } from '@nestjs/testing';
 import { DataSource } from 'typeorm';
 import { AppModule } from '../../src/app.module';
 import { HttpExceptionFilter } from '../../src/common/filters/http-exception.filter';
@@ -9,10 +9,17 @@ import { UsersService } from '../../src/users/users.service';
 // e2e 테스트용 Nest 앱을 부팅한다.
 // 프로덕션과 동일하게 동작해야 하므로 main.ts와 같은 전역 파이프/필터를 적용한다.
 // (이게 빠지면 validation·에러 포맷이 실제와 달라져 "실제 사용을 닮은 테스트"가 깨진다.)
-export async function createTestApp(): Promise<INestApplication> {
-  const moduleRef = await Test.createTestingModule({
-    imports: [AppModule],
-  }).compile();
+//
+// configure 콜백으로 모듈 빌더를 가공할 수 있다(예: .overrideProvider(...)).
+// 외부 의존(AI provider 등)을 테스트별로 명시적으로 가짜로 바꿀 때 쓴다 = RTL의 MSW handler.
+export async function createTestApp(
+  configure?: (builder: TestingModuleBuilder) => TestingModuleBuilder | void,
+): Promise<INestApplication> {
+  let builder = Test.createTestingModule({ imports: [AppModule] });
+  if (configure) {
+    builder = configure(builder) ?? builder;
+  }
+  const moduleRef = await builder.compile();
 
   const app = moduleRef.createNestApplication();
   app.useGlobalFilters(new HttpExceptionFilter());

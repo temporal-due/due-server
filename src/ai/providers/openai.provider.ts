@@ -29,7 +29,10 @@ const PROJECT_SUGGEST_SCHEMA = {
     type: 'object',
     properties: {
       projectName: { type: 'string' },
-      startDate: { type: 'string', description: 'ISO date string (YYYY-MM-DD)' },
+      startDate: {
+        type: 'string',
+        description: 'ISO date string (YYYY-MM-DD)',
+      },
       dueDate: { type: 'string', description: 'ISO date string (YYYY-MM-DD)' },
       budget: { type: 'integer', description: 'Estimated budget in KRW' },
       phases: {
@@ -55,7 +58,13 @@ const PROJECT_SUGGEST_SCHEMA = {
               },
             },
           },
-          required: ['name', 'expectedStartDate', 'expectedEndDate', 'order', 'tasks'],
+          required: [
+            'name',
+            'expectedStartDate',
+            'expectedEndDate',
+            'order',
+            'tasks',
+          ],
           additionalProperties: false,
         },
       },

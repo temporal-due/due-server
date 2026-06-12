@@ -67,6 +67,23 @@ id-token(JWKS) 검증에만 쓰이는데 e2e는 dev 토큰으로 우회하므로
 타입 체크는 영향받지 않아 실제 jose 타입을 그대로 쓴다. 외부 인증 제공자를 모킹하는 것과
 동일한 정당한 경계이며, 누가 social-login을 e2e로 검증하려 하면 스텁이 즉시 던져 알려준다.
 
+## 외부 의존(AI provider) 처리
+
+실제 LLM 호출은 **돈이 나가고 비결정적**이라 테스트에 부적합하다. 그래서 suggest provider는
+포트(`ProjectSuggestProvider` 인터페이스 + `PROJECT_SUGGEST_PROVIDER` 토큰)에만 의존하게 두고,
+환경에 따라 어댑터를 갈아끼운다 (= 프론트의 MSW / fake API client).
+
+- **구현체**: `OpenAiProvider`(실과금) ↔ `StaticProjectSuggestProvider`(가짜·무과금, §6 시드).
+- **선택**(`AiModule` 팩토리): `NODE_ENV=test`면 **무조건 static**(테스트는 절대 실과금 X) →
+  `AI_PROVIDER=static|openai` 명시값 → 미설정 시 `OPENAI_API_KEY` 유무로 자동.
+- **테스트에서 두 가지 방식**:
+  1. **기본 static**(`NODE_ENV=test`) — `ai-suggest.e2e-spec.ts`의 OUTLINE/DETAILED 구조 검증.
+     "절대 과금 안 함"을 환경이 보장하는 안전망.
+  2. **명시적 `.overrideProvider`** — 테스트가 직접 가짜를 주입해 "주입 출력 → 응답 매핑"을
+     단언. env 매직에 의존하지 않아 자명하다(권장). `createTestApp(builder => builder.overrideProvider(...))`.
+- **contract drift 방지**: 가짜만 쓰면 실제 OpenAI 어댑터(프롬프트·스키마·파싱)는 안 돌아간다.
+  실제 API 검증이 필요하면 `OPENAI_API_KEY`를 넣고 `pnpm suggest:dev`로 opt-in 스모크만 돌린다(기본 CI 제외).
+
 ## 테스트 작성 원칙
 
 - **단언은 응답으로**: 영속 여부는 레포지토리를 들여다보지 말고 다시 `GET` 해서 확인한다.

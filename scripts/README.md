@@ -144,7 +144,10 @@ dev 토큰을 발급하고, 다음 엔드포인트들을 순서대로 호출해 
 - S5~S7 AI 생성 흐름(type·style·planLevel 입력 → suggest → 계획 확인)을 한 번에 점검할 때
 - OpenAI 프롬프트나 planLevel 분기 로직을 수정한 뒤 검증할 때
 
-> **전제**: OUTLINE·DETAILED 테스트는 `.env`에 `OPENAI_API_KEY`가 설정되어 있어야 합니다. MANUAL은 API 키 없이도 동작합니다.
+> **전제**: 서버가 어떤 AI provider로 떴는지에 따라 OUTLINE·DETAILED 결과가 달라집니다.
+> 키 없이(또는 `AI_PROVIDER=static`) 띄우면 가짜 provider가 고정 데이터를 돌려줘 무과금으로 동작하고,
+> `OPENAI_API_KEY`가 있으면 실제 OpenAI를 호출합니다. MANUAL은 provider를 거치지 않아 항상 동작합니다.
+> (provider 선택 규칙은 `src/ai/ai.module.ts`, 자세한 배경은 `docs/specs/testing.md` 참조.)
 
 ---
 
