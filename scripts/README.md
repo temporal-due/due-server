@@ -169,6 +169,44 @@ dev 토큰을 발급하고, 여러 Phase/Task가 있는 프로젝트를 만든 �
 
 ---
 
+### "GUI 없이 유저 스토리 전체가 동작하는지 한 번에 검증하고 싶어요" (프론트엔드 개발자 필독)
+
+```bash
+pnpm scenarios:dev
+```
+
+DB를 초기화한 뒤, 실제 화면 흐름(S2~S14) 순서대로 API를 찔러 **유저 스토리 전체**를
+검증합니다. 위의 기능 스크립트(`crud:dev` 등)가 한 기능 그룹의 happy-path를 좁게 확인하는
+반면, 이 시나리오 스크립트는 여러 화면을 가로지르는 **유저 여정**을 순서대로 검증합니다.
+각 단계는 단언(assert)으로 응답을 검사하며, 하나라도 실패하면 비정상 종료(exit 1)합니다.
+
+개별 시나리오만 돌리려면:
+
+```bash
+pnpm dev:reset            # 개별 실행 시 먼저 한 번
+pnpm scenario:onboarding  # 시나리오 1: 온보딩 → 첫 프로젝트 생성 → 검토 → 편집
+pnpm scenario:collab      # 시나리오 2: 파트너 협업 → 배정 → 대시보드 → 완료 → 정리
+```
+
+- **시나리오 1** (`dev-scenario-onboarding.sh`): `/auth/me` → `PATCH /users/me`(닉네임) →
+  `GET /project-types` → `POST /projects/suggest`(MANUAL) → `POST /projects` →
+  `GET /projects/:id`(검토) → `GET /projects`(목록) → Phase/Task 추가·편집·삭제.
+- **시나리오 2** (`dev-scenario-collab.sh`): 프로젝트 생성 → 초대 코드 발급/수락 →
+  멤버 조회 → 담당 배정(나/파트너/함께) → 역할별·일정 대시보드 →
+  할 일 완료(진행률 갱신) → reset → delete.
+
+**언제 쓰나요?**
+- 새 화면 흐름을 구현하기 전에 의존하는 API 시퀀스가 실제로 동작하는지 미리 확인할 때
+- 백엔드 변경 후 핵심 유저 스토리가 깨지지 않았는지 회귀 검증할 때
+
+> **전제**: 서버가 떠 있어야 합니다(`make dev` / `make dev-local`). 시나리오 2는 파트너 유저(user2)를
+> 직접 DB에 삽입합니다. AI 실제 생성(OUTLINE/DETAILED)은 시나리오에 포함하지 않으며 `pnpm suggest:dev`로 검증합니다.
+>
+> 시나리오 정의와 화면↔API 매핑은 [`docs/specs/user-stories.md`](../docs/specs/user-stories.md) 참조.
+> 공용 헬퍼는 `scripts/lib/dev-lib.sh`에 있습니다.
+
+---
+
 ## 전형적인 개발 시작 순서
 
 ```bash

@@ -72,6 +72,15 @@ pnpm dashboard:dev # 프로젝트 상세·대시보드·삭제·초기화 happy-
 pnpm suggest:dev   # AI suggest(planLevel=MANUAL/OUTLINE/DETAILED) + 프로젝트 생성 확장 확인
 ```
 
+GUI 없이 API만으로 유저 스토리 전체가 동작하는지 한 번에 검증하려면 시나리오 스크립트를 쓰세요
+(시나리오 정의: [`docs/specs/user-stories.md`](docs/specs/user-stories.md)):
+
+```bash
+pnpm scenarios:dev        # DB 초기화 후 전체 유저 스토리 시나리오 순서대로 검증 (권장)
+pnpm scenario:onboarding  # 시나리오 1: 온보딩→첫 프로젝트 생성→검토→편집
+pnpm scenario:collab      # 시나리오 2: 파트너 협업→배정→대시보드→완료→정리
+```
+
 서버 종료: `make down`
 
 ---
